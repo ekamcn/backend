@@ -1,0 +1,23 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model stores {
+  store_id   String  @id @default(uuid())
+  storeName String @map("store_name")
+  storeUrl String? @map("store_url")
+  status String?
+  email String
+  phone String
+  customOfferIds Json? @map("custom_offer_ids")
+  googleAdsId String? @map("google_ads_id")
+  synchronisId String? @map("synchronis_id")
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}
