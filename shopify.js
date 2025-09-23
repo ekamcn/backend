@@ -7,6 +7,7 @@ const prisma = new PrismaClient();
 const { execSync } = require("child_process");
 const pty = require("node-pty");
 const sharp = require("sharp");
+const { parse } = require("csv-parse/sync");
 
 const shell = os.platform() === "win32" ? "powershell.exe" : "bash";
 
@@ -2147,7 +2148,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
 
       const publicationsQuery = `
         query GetPublications {
-          publications(first: 20) {
+          publications(first: 250) {
             edges {
               node { id name }
             }
@@ -2159,7 +2160,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
       let publicationEdges = [];
       try {
         const pubs = await shopifyGraphQL(publicationsQuery, {});
-        publicationEdges = pubs?.data?.publications?.edges || [];
+        publicationEdges = pubs?.data?.publications?.edges || []; 
       } catch (e) {
         socket.emit("publish:error", {
           stage: "publications",
@@ -2197,50 +2198,80 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
           ? selectedPublicationIds
           : allPublicationIds;
 
-      // 9) Iterate rows sequentially
-      let createdCount = 0;
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
+      // 9) Group rows by handle first, then create collections
+      const collections = {};
+      
+      // First pass: Group all rows by handle
+      for (const [, row] of rows.entries()) {
         const record = {};
         header.forEach((key, idx) => {
           record[key] = row[idx] ?? "";
         });
 
-        // Simple validation and formatting for rules
-        const column = (record.type || "TITLE")
-          ? (record.type || "TITLE").toUpperCase().replace(/\s+/g, "_")
-          : "TITLE";
-        // Fix common typo
-        const normalizedColumn = column && column.startsWith("VARAINT_")
+        // Skip rows without essential data
+        if (!record.handle) {
+          continue;
+        }
+
+        // Normalize type/column
+        const column = record?.type.toUpperCase().replace(/\s+/g, "_");
+        const normalizedColumn = column.startsWith("VARAINT_")
           ? column.replace(/^VARAINT_/, "VARIANT_")
           : column;
 
-        const relation = (record.operator || "CONTAINS")
-          ? (record.operator || "CONTAINS").toUpperCase().replace(/\s+/g, "_")
-          : "CONTAINS";
-        const condition = record.value || "PRODUCT";
+        // Normalize operator/relation
+        const relation = record?.operator.toUpperCase().replace(/\s+/g, "_");
 
-        const rules = [
-          {
-            column: normalizedColumn,
-            relation: relation,
-            condition: condition,
-          },
-        ];
-        const appliedDisjunctively =
-          String(record.match_any).toLowerCase().trim() === "true" ||
-          record.match_any === 1 ||
-          record.match_any === "1";
+        // Condition/value
+        const condition = record?.value;
+
+        // Build rule object
+        const rule = {
+          column: normalizedColumn,
+          relation: relation,
+          condition: condition,
+        };
+
+        // Use handle as unique key for collections
+        const handle = record.handle;
+
+        if (!collections[handle]) {
+          collections[handle] = {
+            title: record.title,
+            description: record.description,
+            handle: handle,
+            match_any: record.match_any === "true",
+            image_src: record.image_src,
+            rules: [], // initialize empty rules array
+          };
+        }
+
+        // Push rule into that handle's rules array
+        collections[handle].rules.push(rule);
+      }
+
+      // Convert to array for processing
+      const collectionsArray = Object.values(collections);
+      let createdCount = 0;
+
+      // Second pass: Create collections with grouped rules
+      for (const [i, collection] of collectionsArray.entries()) {
+        const rules = collection?.rules;
+        const handle = collection?.handle;
+        const title = collection?.title;
+        const description = collection?.description;
+        const image_src = collection?.image_src;
+        const appliedDisjunctively = collection?.match_any;
 
         // Build collectionInput exactly as requested
         const collectionInput = {
-          title: record.title,
-          handle: record.handle,
+          title: title,
+          handle: handle,
           descriptionHtml:
-            record.description || "Collection created from CSV import",
+            description || "Collection created from CSV import",
           sortOrder: "BEST_SELLING",
           ruleSet: { appliedDisjunctively, rules },
-          image_src: record.image_src,
+          image_src: image_src,
           metafields: [
             {
               namespace: "custom",
@@ -2257,21 +2288,21 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
             socket.emit("publish:collections:progress", {
               index: i,
               stage: "image_staged_upload",
-              handle: record.handle,
-              title: record.title,
+              handle: handle,
+              title: title,
             });
             const resourceUrl = await stagedUploadImage(
               collectionInput.image_src
             );
             collectionInput.image = {
               src: resourceUrl,
-              altText: record.title || "",
+              altText: title || "",
             };
           } catch (e) {
             socket.emit("publish:collections:error", {
               index: i,
-              title: record.title,
-              handle: record?.hnadle,
+              title: title,
+              handle: handle,
               message: e?.message || String(e),
             });
             continue;
@@ -2282,8 +2313,8 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
           socket.emit("publish:collections:progress", {
             index: i,
             stage: "create_mutation",
-            handle: record.handle,
-            title: record.title,
+            handle: handle,
+            title: title,
           });
           const result = await shopifyGraphQL(collectionCreateMutation, {
             input: collectionInput,
@@ -2302,7 +2333,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
               const getCollectionsByTitleQuery = `
                 query($handle: String!) { collections(first: 10, query: $handle) { edges { node { id title handle updatedAt metafields(first: 10) { edges { node { id namespace key type value } } } } } } }
               `;
-              const handleQuery = `handle:'${record.handle ? record.handle.replace(
+              const handleQuery = `handle:'${handle ? handle.replace(
                 /'/g,
                 "\\'"
               ) : ''}'`;
@@ -2369,26 +2400,26 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
                 if (updErrors.length) {
                   socket.emit("publish:collections:error", {
                     index: i,
-                    title: record.title,
-                    handle: record.handle,
+                    title: title,
+                    handle: handle,
                     message: `update_failed: ${JSON.stringify(updErrors)}`,
                   });
                   continue;
                 }
                 socket.emit("publish:collections:progress", {
                   index: i,
-                  title: record.title,
+                  title: title,
                   id: existingNode.id,
-                  handle: record.handle,
+                  handle: handle,
                 });
 
                 // Consider this collection processed successfully after update
                 createdCount++;
                 socket.emit("publish:collections:published", {
                   index: i,
-                  title: record.title,
+                  title: title,
                   id: existingNode.id,
-                  handle: record?.handle,
+                  handle: handle,
                 });
                 continue;
               }
@@ -2396,28 +2427,28 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
               // If we couldn't find existing collection, report original error
               socket.emit("publish:collections:error", {
                 index: i,
-                title: record.title,
-                handle: record.handle,
+                title: title,
+                handle: handle,
                 message: "collection_not_found_by_title",
               });
               socket.emit("publish:collections:error", {
                 index: i,
-                title: record.title,
-                handle: record.handle,
+                title: title,
+                handle: handle,
                 message: JSON.stringify(userErrors),
               });
               continue;
             } catch (recoveryError) {
               socket.emit("publish:collections:error", {
                 index: i,
-                title: record.title,
-                handle: record.handle,
+                title: title,
+                handle: handle,
                 message: recoveryError?.message || String(recoveryError),
               });
               socket.emit("publish:collections:error", {
                 index: i,
-                title: record.title,
-                handle: record.handle,
+                title: title,
+                handle: handle,
                 message: `recovery_failed: ${
                   recoveryError?.message || String(recoveryError)
                 }`,
@@ -2425,23 +2456,23 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
               continue;
             }
           }
-          const collection = result?.data?.collectionCreate?.collection;
+          const collectionData = result?.data?.collectionCreate?.collection;
 
           // Optionally publish to sales channels (publications)
-          if (collection?.id && publicationIdsToUse.length > 0) {
+          if (collectionData?.id && publicationIdsToUse.length > 0) {
             const failedPublications = [];
             for (const publicationId of publicationIdsToUse) {
               try {
                 socket.emit("publish:collections:publishing", {
                   index: i,
-                  title: record.title,
-                  collectionId: collection.id,
+                  title: title,
+                  collectionId: collectionData?.id,
                   publicationId,
                 });
                 const pubResult = await shopifyGraphQL(
                   publishCollectionMutation,
                   {
-                    collectionId: collection.id,
+                    collectionId: collectionData?.id,
                     publicationId: publicationId,
                   }
                 );
@@ -2454,18 +2485,18 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
                   failedPublications.push({ id: publicationId, error: msg });
                   socket.emit("publish:collections:publish_error", {
                     index: i,
-                    title: record.title,
-                    collectionId: collection.id,
-                    handle: record?.handle,
+                    title: title,
+                    collectionId: collectionData?.id,
+                    handle: handle,
                     publicationId,
                     message: msg,
                   });
                 } else {
                   socket.emit("publish:collections:published", {
                     index: i,
-                    title: record.title,
-                    handle: record?.handle,
-                    collectionId: collection.id,
+                    title: title,
+                    handle: handle,
+                    collectionId: collectionData?.id,
                     publicationId,
                   });
                 }
@@ -2474,8 +2505,8 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
                 failedPublications.push({ id: publicationId, error: msg });
                 socket.emit("publish:collections:publish_error", {
                   index: i,
-                  title: record.title,
-                  collectionId: collection.id,
+                  title: title,
+                  collectionId: collectionData?.id,
                   publicationId,
                   message: msg,
                 });
@@ -2483,8 +2514,8 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
             }
             socket.emit("publish:collections:publish_summary", {
               index: i,
-              title: record.title,
-              collectionId: collection.id,
+              title: title,
+              collectionId: collectionData?.id,
               failed: failedPublications,
             });
           }
@@ -2492,15 +2523,16 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
           createdCount++;
           socket.emit("publish:collections:success", {
             index: i,
-            title: record.title,
-            id: collection?.id,
-            handle: collection?.handle,
+            title: title,
+            id: collectionData?.id,
+            handle: handle,
           });
         } catch (e) {
+          console.log(e.message)
           socket.emit("publish:collections:error", {
             index: i,
-            title: record.title,
-            handle: record?.handle,
+            title: title,
+            handle: handle,
             message: e?.message || String(e),
           });
         }
@@ -2508,7 +2540,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
 
       socket.emit("publish:collections:done", {
         created: createdCount,
-        total: rows.length,
+        total: collectionsArray.length,
       });
       // Kick off products step automatically
       socket.emit("publish:collections:completed", {
@@ -2523,4 +2555,294 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
       });
     }
   });
+  socket.on("publish:products", async (payload) => {
+    uploadProducts(payload);
+  });
+async function uploadProducts(message) {
+  const payload = JSON.parse(message);
+
+  try {
+    if (!payload?.storeName) {
+      console.error("[UploadProducts] Missing storeName in payload");
+      socket.emit("publish:error", {
+        message: "Missing storeName in payload",
+      });
+      return;
+    }
+
+    const storeName = payload.storeName.trim();
+    console.log(`[UploadProducts] Starting for store: ${storeName}`);
+
+    // Load .env
+    const envPath = path.join("./" + storeName, ".env");
+    if (!fs.existsSync(envPath)) {
+      console.error(`[UploadProducts] .env file not found: ${envPath}`);
+      socket.emit("publish:error", { message: ".env file not found", envPath });
+      return;
+    }
+
+    console.log(`[UploadProducts] Loading env from: ${envPath}`);
+
+    const envMap = {};
+    fs.readFileSync(envPath, "utf8")
+      .split(/\r?\n/)
+      .forEach((line) => {
+        if (!line || line.startsWith("#")) return;
+        const [key, ...rest] = line.split("=");
+        if (!key) return;
+        envMap[key.trim()] = rest.join("=").trim().replace(/^"|"$/g, "");
+      });
+
+    function buildAdminUrlFromEnv(map) {
+      const direct =
+        map["SHOPIFY_ADMIN_API_URL"] || map["VITE_SHOPIFY_ADMIN_API_URL"];
+      if (direct && direct.trim()) return direct.trim();
+      const domain =
+        map["VITE_SHOPIFY_URL"] ||
+        map["SHOPIFY_STORE_DOMAIN"] ||
+        map["SHOPIFY_STORE_URL"] ||
+        "";
+      if (!domain) return null;
+      const clean = domain ? domain.replace(/^https?:\/\//, "") : "";
+      return `https://${clean}/admin/api/2025-07/graphql.json`;
+    }
+
+    const ADMIN_URL = buildAdminUrlFromEnv(envMap);
+    const ADMIN_TOKEN =
+      envMap["SHOPIFY_ADMIN_ACCESS_TOKEN"] ||
+      envMap["VITE_SHOPIFY_ADMIN_ACCESS_TOKEN"];
+
+    if (!ADMIN_URL || !ADMIN_TOKEN) {
+      console.error("[UploadProducts] Missing Shopify credentials");
+      socket.emit("publish:error", { message: "Missing Shopify credentials" });
+      return;
+    }
+
+    console.log(`[UploadProducts] Using Shopify API: ${ADMIN_URL}`);
+
+    // Parse CSV
+    const themeFolderPath = path.resolve(
+      `./${envMap["VITE_CATEGORY"]}_${envMap["VITE_LANGUAGE"]}`
+    );
+    const csvFiles = fs
+      .readdirSync(themeFolderPath)
+      .filter((f) => f.toLowerCase().endsWith(".csv"));
+    const productCsv = csvFiles.find((f) =>
+      f.toLowerCase().includes("product")
+    );
+    if (!productCsv) {
+      console.error(`[UploadProducts] Products CSV not found in: ${themeFolderPath}`);
+      socket.emit("publish:error", {
+        message: "Products CSV not found",
+        themeFolderPath,
+      });
+      return;
+    }
+
+    console.log(`[UploadProducts] Found product CSV: ${productCsv}`);
+
+    const fileContent = fs.readFileSync(
+      path.join(themeFolderPath, productCsv),
+      "utf8"
+    );
+    const records = parse(fileContent, { skip_empty_lines: true });
+    const header = records[0];
+    const rows = records.slice(1);
+
+    console.log(`[UploadProducts] CSV contains ${rows.length} product rows`);
+
+    // Group products by handle
+    const groupedProducts = new Map();
+
+    rows.forEach((row) => {
+      const data = {};
+      header.forEach((h, i) => {
+        if (row[i] && row[i].trim()) data[h] = row[i].trim();
+      });
+
+      const handle = data["Handle"];
+      if (!handle) return;
+
+      if (!groupedProducts.has(handle)) {
+        groupedProducts.set(handle, {
+          baseRow: { ...data },
+          variants: [],
+          media: [],
+        });
+      }
+
+      const group = groupedProducts.get(handle);
+
+      // Merge media
+      if (data["Image Src"]) {
+        group.media.push({
+          originalSource: data["Image Src"],
+          alt: data["Image Alt Text"] || `Media for ${handle}`,
+          contentType: "IMAGE",
+        });
+      }
+
+      // Build optionValues dynamically
+      const optionValues = [];
+      ["1", "2", "3"].forEach((n) => {
+        const optName =
+          data[`Option${n} Name`] || group.baseRow[`Option${n} Name`];
+        const optValue = data[`Option${n} Value`];
+        if (optName && optValue)
+          optionValues.push({ optionName: optName, name: optValue });
+      });
+
+      if (optionValues.length || data["Variant SKU"]) {
+        group.variants.push({
+          price: data["Variant Price"]?.toString() || "10.00",
+          inventoryPolicy: (
+            data["Variant Inventory Policy"] || "CONTINUE"
+          ).toUpperCase(),
+          taxable: data["Variant Taxable"]?.toUpperCase() === "TRUE",
+          optionValues,
+          inventoryQuantities: data["Variant Inventory Qty"]
+            ? [
+                {
+                  locationId: null,
+                  quantity: Number(data["Variant Inventory Qty"]),
+                  name: "available",
+                },
+              ]
+            : [],
+          sku: data["Variant SKU"]?.toString(),
+        });
+      }
+    });
+
+    console.log(`[UploadProducts] Grouped into ${groupedProducts.size} products`);
+
+    // Shopify GraphQL helper
+    async function shopifyGraphQL(query, variables) {
+      console.log(`[UploadProducts] → Sending GraphQL request`);
+      const rsp = await fetch(ADMIN_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": ADMIN_TOKEN,
+        },
+        body: JSON.stringify({ query, variables }),
+      });
+      if (!rsp.ok) throw new Error(`GraphQL HTTP error ${rsp.status}`);
+      return rsp.json();
+    }
+
+    // Fetch location once
+    const locationResp = await shopifyGraphQL(
+      `query { locations(first: 5) { edges { node { id } } } }`
+    );
+    const locationId =
+      locationResp?.data?.locations?.edges?.[0]?.node?.id || null;
+    console.log(`[UploadProducts] Using locationId: ${locationId}`);
+    const createdCount = 0;
+    // Loop over products
+    for (const [handle, group] of groupedProducts) {
+      try {
+        console.log(`[UploadProducts] Creating product: ${handle}`);
+
+        const product = group.baseRow;
+        const optionNames = ["1", "2", "3"]
+          .map((n) => group.baseRow[`Option${n} Name`])
+          .filter(Boolean);
+
+        const derivedProductOptions = optionNames.map((optName) => {
+          const values = Array.from(
+            new Set(
+              group.variants
+                .flatMap((v) =>
+                  v.optionValues
+                    .filter((ov) => ov.optionName === optName)
+                    .map((ov) => ov.name)
+                )
+                .filter(Boolean)
+            )
+          );
+          return { name: optName, values: values.map((v) => ({ name: v })) };
+        });
+
+        const inputPayload = {
+          synchronous: true,
+          productSet: {
+            title: product.Title || handle,
+            descriptionHtml: product["Body (HTML)"] || "",
+            vendor: product.Vendor || "Default Vendor",
+            productType: product["Type"] || "General",
+            status: (product["Status"] || "ACTIVE").toUpperCase(),
+            seo: {
+              title: product["SEO Title"] || product.Title,
+              description: product["SEO Description"] || "",
+            },
+            tags: product["Tags"] || "",
+            productOptions: derivedProductOptions,
+            metafields: [
+              {
+                namespace: "custom",
+                key: "theme_types",
+                value: envMap["VITE_STORE_NAME"] || storeName,
+                type: "single_line_text_field",
+              },
+            ],
+            variants: group.variants.map((v) => {
+              v.inventoryQuantities.forEach(
+                (iq) => (iq.locationId = locationId)
+              );
+              return v;
+            }),
+            files: group.media,
+          },
+        };
+
+        const createResp = await shopifyGraphQL(
+          `
+          mutation createProductAsynchronous($productSet: ProductSetInput!, $synchronous: Boolean!) {
+            productSet(synchronous: $synchronous, input: $productSet) {
+              product { id title }
+              userErrors { field message }
+            }
+          }`,
+          inputPayload
+        );
+
+        const createdProduct = createResp?.data?.productSet?.product;
+        if (!createdProduct?.id) {
+          console.error(
+            `[UploadProducts] Failed for ${handle}:`,
+            createResp?.data?.productSet?.userErrors
+          );
+          socket.emit("publish:error", {
+            handle,
+            message: JSON.stringify(createResp?.data?.productSet?.userErrors),
+          });
+          continue;
+        }
+
+        console.log(
+          `[UploadProducts] ✅ Created product: ${createdProduct.title} (${createdProduct.id})`
+        );
+
+        createdCount++;
+        socket.emit("publish:success", {
+          handle,
+          id: createdProduct.id,
+          count: createdCount,
+          title: createdProduct.title,
+        });
+      } catch (err) {
+        console.error(`[UploadProducts] ❌ Error for ${handle}:`, err);
+        socket.emit("publish:error", {
+          handle: group.baseRow.Handle,
+          message: err?.message || String(err),
+        });
+      }
+    }
+  } catch (err) {
+    console.error("[UploadProducts] Fatal error:", err);
+    socket.emit("publish:error", { message: err?.message || String(err) });
+  }
+}
+
 };
