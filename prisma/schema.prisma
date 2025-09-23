@@ -18,6 +18,8 @@ model stores {
   customOfferIds Json? @map("custom_offer_ids")
   googleAdsId String? @map("google_ads_id")
   synchronisId String? @map("synchronis_id")
+  shopifyUrl String? @map("shopify_url")
+  isPublished Boolean @default(false) @map("is_published")
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 }

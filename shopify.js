@@ -176,11 +176,12 @@ module.exports = (io, socket) => {
       `./${message.category}_${message.language}`
     );
     const hyphenatedStoreName = message.name
-      .trim()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-zA-Z0-9\-]/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-+|-+$/g, "");
+      ? message.name.trim()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-zA-Z0-9\-]/g, "-")
+          .replace(/-+/g, "-")
+          .replace(/^-+|-+$/g, "")
+      : "";
     themeEnv = `
 #Custom theme configuration
 VITE_SHOPIFY_STORE_NAME="${message.name.trim()}"
@@ -236,6 +237,7 @@ VITE_TYPOGRAPHY="${message.typography || "sans-serif"}"
 # Legal Information
 VITE_COMPANY_NAME="${message.companyName || ""}"
 VITE_COMPANY_ADDRESS="${message.companyAddress || ""}"
+VITE_COMPANY_CITY="${message.companyCity || ""}"
 
 # Checkout Configuration
 VITE_CHECKOUT_DOMAIN="${message.checkoutDomain || ""}"
@@ -243,6 +245,7 @@ VITE_CHECKOUT_ID="${message.checkoutId || ""}"
 VITE_OFFER_ID_TYPE="${message.offerIdType || "default"}"
 
 VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
+VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
 `;
 
     // Append dynamic Custom Offer IDs to the env
@@ -250,11 +253,12 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
       const customOfferIds = message.customOfferIds || {};
       if (customOfferIds && typeof customOfferIds === "object") {
         const normalizeKey = (k) =>
-          String(k)
-            .trim()
-            .replace(/\s+/g, "")
-            .replace(/\./g, "_")
-            .replace(/[^0-9_]/g, "");
+          k ? String(k)
+              .trim()
+              .replace(/\s+/g, "")
+              .replace(/\./g, "_")
+              .replace(/[^0-9_]/g, "")
+            : "";
         const lines = Object.entries(customOfferIds)
           .filter(([k, v]) => k !== undefined && v !== undefined && v !== null)
           .map(
@@ -296,10 +300,6 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
         finalizeProcess(themeDir, true); // Cleanup on error, delete store
       }
     });
-
-    // Prepare hydrogen theme npm+git
-    // const themeDir = '/Users/ekamjitsingh/Downloads/shopify_hydrogen_automate/clothestheme'
-    // const themeEnv = `\n#Custom theme configuration\nVITE_SHOPIFY_STORE_NAME="clothestheme"\nVITE_SHOPIFY_STORE_EMAIL="clothes@test.com"\nVITE_SHOPIFY_STORE_PHONE="7009338940"\nVITE_SHOPIFY_STORE_LANGUAGE=['en','fr','de'];\nVITE_SHOPIFY_STORE_LOGO="/logo.png"`
 
     function hydrogenPrepare(themeDir, themeEnv) {
       try {
@@ -404,426 +404,10 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
       }
     }
 
-    // Link hydrogen theme process
-    // function hydrogenLink(themeDir) {
-    //   try {
-    //     execSync("shopify auth logout", {});
-
-    //     const ptyProcess = pty.spawn(
-    //       "shopify",
-    //       ["hydrogen", "link", "--path", `${themeDir}`],
-    //       {
-    //         name: "xterm-256color",
-    //         cwd: themeDir,
-    //         env: process.env,
-    //         cols: 80,
-    //         rows: 30,
-    //       }
-    //     );
-    //     let urlCaptured = false;
-
-    //     // Helper: if URL wasn't captured during initial link (e.g. first-time creation),
-    //     // re-run link to list storefronts, pick the intended one, extract URL, and persist to DB.
-    //     const attemptRelinkForUrl = () => {
-    //       try {
-    //         const relink = pty.spawn(
-    //           "shopify",
-    //           ["hydrogen", "link", "--path", `${themeDir}`],
-    //           {
-    //             name: "xterm-256color",
-    //             cwd: themeDir,
-    //             env: process.env,
-    //             cols: 80,
-    //             rows: 30,
-    //           }
-    //         );
-
-    //         relink.onData(async (data) => {
-    //           process.stdout.write(data);
-
-    //           // If already linked, accept
-    //           if (data.includes("Your project is currently linked")) {
-    //             setTimeout(() => relink.write("\r"), 300);
-    //             socket.emit("shopify:status", "Link Exists");
-    //           }
-
-    //           // Start buffering when storefront selection prompt appears
-    //           if (data.includes("?  Select a Hydrogen storefront to link:")) {
-    //             if (selectingStorefront) return;
-    //             storefrontBuffer = "";
-    //           }
-
-    //           if (storefrontBuffer !== null) {
-    //             storefrontBuffer += data;
-
-    //             // Wait until hints are present so list is fully rendered
-    //             if (storefrontBuffer.includes("Press ↑") && !selectingStorefront) {
-    //               selectingStorefront = true;
-
-    //               const noAnsi = storefrontBuffer.replace(/\x1b\[[0-9;]*m/g, "");
-    //               const lines = noAnsi
-    //                 .split("\n")
-    //                 .map((line) => line.trim())
-    //                 .filter(Boolean);
-
-    //               const storefrontOptions = lines.filter(
-    //                 (line) => /(https?:\/\/[^\s]+)/.test(line) || /Create a new storefront/i.test(line)
-    //               );
-
-    //               const normalizedOptions = storefrontOptions.map((l) =>
-    //                 l.replace(/^❯?\s*/, "").replace(/\s+\[default\]$/, "").trim()
-    //               );
-
-    //               const targetStorefront = (message.storefrontName || message.name)
-    //                 .trim()
-    //                 .toLowerCase();
-
-    //               let targetIndex = normalizedOptions.findIndex((opt) =>
-    //                 opt.toLowerCase().includes(targetStorefront)
-    //               );
-    //               if (targetIndex === -1) {
-    //                 targetIndex = normalizedOptions.findIndex((opt) => !/create a new storefront/i.test(opt));
-    //                 if (targetIndex === -1) targetIndex = 0;
-    //               }
-
-    //               const selectedLine = storefrontOptions[targetIndex];
-    //               const urlMatch = selectedLine.match(/https?:\/\/[^\s)]+/);
-    //               let selectedUrl = urlMatch ? urlMatch[0] : null;
-
-    //               if (selectedUrl) {
-    //                 selectedUrl = selectedUrl.replace(/^[()\[\]<>{},]+|[()\[\]<>{},]+$/g, "");
-    //                 try {
-    //                   if (storeDetails) {
-    //                     await prisma.stores.update({
-    //                       where: { store_id: storeDetails.store_id },
-    //                       data: { storeUrl: selectedUrl, status: "active" },
-    //                     });
-    //                   }
-    //                   urlCaptured = true;
-    //                   socket.emit("shopify:storeurl", selectedUrl);
-    //                   socket.emit("shopify:status", "Store URL captured on retry");
-    //                 } catch (e) {
-    //                   console.error("DB update failed (retry)", e);
-    //                 }
-    //               }
-
-    //               // Move to the option and select to keep CLI state consistent
-    //               const cursorLineIndex = storefrontOptions.findIndex((l) => l.includes("❯"));
-    //               let currentIndex = cursorLineIndex === -1 ? 0 : cursorLineIndex;
-    //               let steps = targetIndex - currentIndex;
-
-    //               navInterval = setInterval(() => {
-    //                 if (steps !== 0) {
-    //                   relink.write(steps > 0 ? "\x1B[B" : "\x1B[A");
-    //                   steps += steps > 0 ? -1 : 1;
-    //                 } else {
-    //                   relink.write("\r");
-    //                   clearInterval(navInterval);
-    //                   navInterval = null;
-    //                   storefrontBuffer = null;
-    //                   selectingStorefront = false;
-    //                 }
-    //               }, 150);
-
-    //               socket.emit(
-    //                 "shopify:status",
-    //                 `Selecting Storefront -> ${targetStorefront}`
-    //               );
-    //             }
-    //           }
-    //         });
-
-    //         relink.onExit(() => {
-    //           if (!urlCaptured) {
-    //             socket.emit(
-    //               "shopify:failure",
-    //               "URL not captured after retry. Please link manually."
-    //             );
-    //           }
-    //         });
-    //       } catch (e) {
-    //         console.error("Relink attempt failed", e);
-    //       }
-    //     };
-
-    //     ptyProcess.onData((data) => {
-    //       process.stdout.write(data); // Optional: see the CLI output
-
-    //       // Match and capture the verification code
-    //       const codeMatch = data.match(
-    //         /User verification code:\s*([A-Z0-9-]+)/
-    //       );
-    //       if (codeMatch) {
-    //         console.debug("\nAUTH-CODE");
-
-    //         const code = codeMatch[1];
-    //         console.log("User verification code:", code);
-
-    //         socket.emit("shopify:authcode", code);
-    //       }
-    //       if (
-    //         data.includes(
-    //           "Press any key to open the login page on your browser"
-    //         )
-    //       ) {
-    //         console.debug("\nOPEN-BROWSER");
-
-    //         // Press "Enter" to select the default option
-    //         setTimeout(() => {
-    //           ptyProcess.write("\r"); // \r is Enter
-    //         }, 500);
-
-    //         socket.emit("shopify:status", "Open Browser");
-    //       }
-    //       if (data.includes("Opened link to start the auth process")) {
-    //         console.debug("\nAUTH-URL");
-
-    //         const authUrl = data.match(
-    //           /https:\/\/accounts\.shopify\.com\/activate-with-code\?device_code%5Buser_code%5D=[A-Z0-9\-]+/
-    //         );
-    //         if (authUrl) {
-    //           console.log("Auth URL:", authUrl[0]);
-    //           socket.emit("shopify:authurl", authUrl[0]);
-    //         }
-    //       }
-    //       if (data.includes("?  Select a shop to log in to:")) {
-    //         console.debug("\nSELECT-SHOP");
-
-    //         // Press "Enter" to select the default option
-    //         setTimeout(() => {
-    //           ptyProcess.write("\r"); // \r is Enter
-    //         }, 500);
-
-    //         socket.emit("shopify:status", "Select Shop");
-    //       }
-    //       // if (data.includes("?  Select a Hydrogen storefront to link:")) {
-    //       //   console.debug("\nSELECT-STORE");
-
-    //       //   // Press "Enter" to select the default option
-    //       //   setTimeout(() => {
-    //       //     ptyProcess.write("\r"); // \r is Enter
-    //       //   }, 500);
-
-    //       //   socket.emit("shopify:status", "Select Store");
-    //       // }
-    //       if (data.includes("?  Select a Hydrogen storefront to link:")) {
-    //         console.debug("\nSELECT-STORE");
-          
-    //         // Strip ANSI codes so you get clean lines
-    //         const noAnsi = data.replace(/\x1b\[[0-9;]*m/g, "");
-    //         const lines = noAnsi
-    //           .split("\n")
-    //           .map((line) => line.trim())
-    //           .filter(Boolean);
-          
-    //         // capture all options (including "Create a new storefront")
-    //         const storefrontOptions = lines.filter(
-    //           (line) =>
-    //             /(https?:\/\/[^\s]+)/.test(line) ||
-    //             /Create a new storefront/i.test(line)
-    //         );
-          
-    //         // Normalize: remove markers like ❯ and [default]
-    //         const normalizedOptions = storefrontOptions.map((l) =>
-    //           l.replace(/^❯?\s*/, "").replace(/\s+\[default\]$/, "").trim()
-    //         );
-          
-    //         // Resolve target storefront name
-    //         const targetStorefront = (message.storefrontName || message.name)
-    //           .trim()
-    //           .toLowerCase();
-          
-    //         // Find the option index
-    //         let targetIndex = normalizedOptions.findIndex((opt) =>
-    //           opt.toLowerCase().includes(targetStorefront)
-    //         );
-    //         if (targetIndex === -1) {
-    //           console.warn(
-    //             `⚠️ Storefront "${targetStorefront}" not found. Defaulting to first available (not 'Create a new storefront').`
-    //           );
-    //           targetIndex = normalizedOptions.findIndex(
-    //             (opt) => !/create a new storefront/i.test(opt)
-    //           );
-    //           if (targetIndex === -1) targetIndex = 0;
-    //         }
-          
-    //         const selectedLine = storefrontOptions[targetIndex];
-    //         const urlMatch = selectedLine.match(/https?:\/\/[^\s)]+/);
-    //         let selectedUrl = urlMatch ? urlMatch[0] : null;
-          
-    //         if (selectedUrl) {
-    //           // Trim leading & trailing punctuation just in case
-    //           selectedUrl = selectedUrl.replace(/^[()\[\]<>{},]+|[()\[\]<>{},]+$/g, "");
-
-    //           // Persist URL immediately when available
-    //           try {
-    //             if (storeDetails) {
-    //               (async () => {
-    //                 try {
-    //                   await prisma.stores.update({
-    //                     where: { store_id: storeDetails.store_id },
-    //                     data: { storeUrl: selectedUrl, status: "active" },
-    //                   });
-    //                 } catch (e) {
-    //                   console.error("DB update failed", e);
-    //                 }
-    //               })();
-    //             }
-    //           } catch {}
-
-    //           urlCaptured = true;
-    //           socket.emit("shopify:storeurl", selectedUrl);
-    //           console.debug(`✅ Resolved storefront URL: ${selectedUrl}`);
-    //         }
-          
-    //         // Auto-press Enter (default selection)
-    //         setTimeout(() => {
-    //           ptyProcess.write("\r"); // \r is Enter
-    //         }, 500);
-          
-    //         socket.emit("shopify:status", "Select Store");
-    //       }
-    //       function stripAnsi(text) {
-    //         return text
-    //           .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "")
-    //           .replace(/\x1b\[[0-9;]*m/g, "");
-    //       }
-
-    //       function normalizeInput(str) {
-    //         return str
-    //           .trim()
-    //           .toLowerCase()
-    //           .replace(/\s+/g, "")
-    //           .replace(/[^a-z0-9\-]/g, "");
-    //       }
-
-    //       function isVisualNoise(line) {
-    //         const stripped = line.replace(/\s/g, "");
-    //         return (
-    //           stripped === "" || stripped === ">" || /^[█▔]+$/.test(stripped) // full block or placeholder visuals
-    //         );
-    //       }
-
-    //       let storefrontNameSubmitted = false;
-
-    //       if (data && data.includes("?  New storefront name:")) {
-    //         // Only proceed if we haven't already submitted and it's a relevant prompt
-    //         if (!storefrontNameSubmitted && /new storefront name/i.test(data)) {
-    //           const cleaned = stripAnsi(data);
-    //           const lines = cleaned
-    //             .split("\n")
-    //             .map((line) => line.trim())
-    //             .filter((line) => !isVisualNoise(line));
-
-    //           // Look for the prompt line
-    //           const promptLineIndex = lines.findIndex((line) =>
-    //             line.startsWith("?  New storefront name:")
-    //           );
-
-    //           const candidates = [];
-
-    //           // Check surrounding lines for already-entered name (above, below, same)
-    //           if (promptLineIndex >= 0) {
-    //             const sameLine = lines[promptLineIndex] || "";
-    //             const aboveLine = lines[promptLineIndex - 1] || "";
-    //             const belowLine = lines[promptLineIndex + 1] || "";
-
-    //             // Try extracting any names from "✔ <name>" or lines around the prompt
-    //             const extractName = (line) => {
-    //               const match = line.match(/✔\s+(.*)/);
-    //               return match ? match[1] : line;
-    //             };
-
-    //             candidates.push(
-    //               normalizeInput(extractName(sameLine)),
-    //               normalizeInput(extractName(aboveLine)),
-    //               normalizeInput(extractName(belowLine))
-    //             );
-    //           }
-
-    //           const desiredName = normalizeInput(message.name);
-    //           const matchFound = candidates.some((c) => c === desiredName);
-
-    //           // Only write the name if not already present
-    //           if (!matchFound) {
-    //             ptyProcess.write(message.name);
-    //             setTimeout(() => ptyProcess.write("\r"), 100); // Enter
-    //             storefrontNameSubmitted = true;
-    //             socket.emit("shopify:status", "Storefront name handled.");
-    //           } else {
-    //             storefrontNameSubmitted = true; // Already handled, mark as submitted
-    //             socket.emit(
-    //               "shopify:status",
-    //               "Storefront name already provided."
-    //             );
-    //           }
-    //         }
-    //       } 
-
-    //       if (data.includes("Your project is currently linked")) {
-    //         // PARTIAL TEXT
-    //         console.debug("\nLINK-EXISTS");
-    //         // Press "Enter" to select the default option
-    //         setTimeout(() => {
-    //           ptyProcess.write("\r"); // \r is Enter
-    //           //ptyProcess.write("\x1B[B\r"); // ↓ then Enter
-    //         }, 500);
-
-    //         socket.emit("shopify:status", "Link Exists");
-    //       }
-    //       if (data.includes("Could not create storefront")) {
-    //         console.debug("STORE-EXISTS");
-
-    //         const noAnsi = data.replace(/\x1b\[[0-9;]*m/g, "");
-
-    //         const messageLines = noAnsi
-    //           .split("\n")
-    //           .map((line) => line.trim())
-    //           .filter(
-    //             (line) =>
-    //               line &&
-    //               !/^[-─╭╰╮╯│]+$/.test(line) &&
-    //               !/^╭.*╮$/.test(line) &&
-    //               !/^╰.*╯$/.test(line)
-    //           )
-    //           .map((line) => line.replace(/^│/, "").replace(/│$/, "").trim()); // remove leading/trailing box sides
-
-    //         const finalMessage = messageLines.join(" ");
-    //         socket.emit("shopify:failure", finalMessage);
-    //       }
-    //     });
-    //     ptyProcess.onExit(({ exitCode, signal }) => {
-    //       //console.log(`\nProcess exited with code ${exitCode}, signal: ${signal}`);
-    //       if (exitCode === 0) {
-    //         console.log("✅ Hydrogen link successful");
-    //         socket.emit("shopify:status", "Link Successful");
-    //         // If URL wasn't captured in the first pass (common when creating a new storefront), retry once
-    //         if (!urlCaptured) {
-    //           socket.emit("shopify:status", "Retrying link to capture URL");
-    //           attemptRelinkForUrl();
-    //         }
-
-    //         // hydrogenDeployment(themeDir);
-    //       } else {
-    //         console.log("❌ Hydrogen link failed");
-    //         socket.emit(
-    //           "shopify:failure",
-    //           "Link Failure: " + (signal, exitCode)
-    //         );
-    //         finalizeProcess(themeDir, true); // Cleanup on error, delete store
-    //       }
-    //     });
-    //   } catch (error) {
-    //     console.log("❌ Hydrogen link failed");
-    //     socket.emit("shopify:failure", "Link Failure");
-    //     finalizeProcess(themeDir, true); // Cleanup on error, delete store
-    //   }
-    // }
-    
     function hydrogenLink(themeDir) {
       let urlCaptured = false;
       let deploymentTriggered = false;
-    
+
       // Helper: trigger deployment once
       function triggerDeployment(themeDir) {
         if (!deploymentTriggered) {
@@ -831,7 +415,7 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
           setTimeout(() => hydrogenDeployment(themeDir), 1000);
         }
       }
-    
+
       // Helper function to retry link and capture URL
       const attemptRelinkForUrl = () => {
         try {
@@ -846,111 +430,159 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
               rows: 30,
             }
           );
-    
+
           let relinkBuffer = "";
           let relinkMenuHandled = false;
           let navInterval = null;
-    
+
           relink.onData((data) => {
             process.stdout.write(data);
-    
+
             // Handle auth code
-            const codeMatch = data.match(/User verification code:\s*([A-Z0-9-]+)/);
+            const codeMatch = data.match(
+              /User verification code:\s*([A-Z0-9-]+)/
+            );
             if (codeMatch) {
               socket.emit("shopify:authcode", codeMatch[1]);
             }
-    
+
             // Handle browser open
-            if (data.includes("Press any key to open the login page on your browser")) {
+            if (
+              data.includes(
+                "Press any key to open the login page on your browser"
+              )
+            ) {
               setTimeout(() => relink.write("\r"), 300);
               socket.emit("shopify:status", "Open Browser");
             }
-    
+
             // Handle auth URL
             if (data.includes("Opened link to start the auth process")) {
-              const authUrl = data.match(/https:\/\/accounts\.shopify\.com\/activate-with-code\?device_code%5Buser_code%5D=[A-Z0-9\-]+/);
+              const authUrl = data.match(
+                /https:\/\/accounts\.shopify\.com\/activate-with-code\?device_code%5Buser_code%5D=[A-Z0-9\-]+/
+              );
               if (authUrl) {
                 socket.emit("shopify:authurl", authUrl[0]);
               }
             }
-    
+
             // Handle shop selection
             if (data.includes("?  Select a shop to log in to:")) {
               setTimeout(() => relink.write("\r"), 300);
               socket.emit("shopify:status", "Select Shop");
             }
-    
+
             // Handle "already linked" prompt
             if (data.includes("Your project is currently linked")) {
               setTimeout(() => relink.write("\r"), 300);
               socket.emit("shopify:status", "Link Exists");
             }
-    
+
             // Start buffering when storefront selection appears
             if (data.includes("?  Select a Hydrogen storefront to link:")) {
               relinkBuffer = "";
               relinkMenuHandled = false;
             }
-    
+
             if (relinkBuffer !== null) {
               relinkBuffer += data;
-    
+
               if (!relinkMenuHandled && relinkBuffer.includes("Press ↑↓")) {
                 relinkMenuHandled = true;
-    
+
                 // Parse options
-                const noAnsi = relinkBuffer.replace(/\x1b\[[0-9;]*m/g, "");
-                const lines = noAnsi.split("\n").map(l => l.trim()).filter(Boolean);
-    
-                const storefrontOptions = lines.filter(line =>
-                  /(https?:\/\/[^\s]+)/.test(line) || /Create a new storefront/i.test(line)
+                const noAnsi = relinkBuffer ? relinkBuffer.replace(/\x1b\[[0-9;]*m/g, "") : "";
+                const lines = noAnsi
+                  .split("\n")
+                  .map((l) => l.trim())
+                  .filter(Boolean);
+
+                const storefrontOptions = lines.filter(
+                  (line) =>
+                    /(https?:\/\/[^\s]+)/.test(line) ||
+                    /Create a new storefront/i.test(line)
                 );
-    
-                const normalizedOptions = storefrontOptions.map(l =>
-                  l.replace(/^❯?\s*/, "").replace(/\s+\[default\]$/, "").trim()
+
+                const normalizedOptions = storefrontOptions.map((l) =>
+                  l ? l
+                      .replace(/^❯?\s*/, "")
+                      .replace(/\s+\[default\]$/, "")
+                      .trim()
+                    : ""
                 );
-    
-                const targetStorefront = (message.storefrontName || message.name).trim().toLowerCase();
-                let targetIndex = normalizedOptions.findIndex(opt =>
-                  opt.toLowerCase().includes(targetStorefront) && !/create a new storefront/i.test(opt)
+
+                const targetStorefront = (
+                  message.storefrontName || message.name
+                )
+                  .trim()
+                  .toLowerCase();
+                let targetIndex = normalizedOptions.findIndex(
+                  (opt) =>
+                    opt.toLowerCase().includes(targetStorefront) &&
+                    !/create a new storefront/i.test(opt)
                 );
-    
+
                 if (targetIndex === -1) {
-                  targetIndex = normalizedOptions.findIndex(opt => !/create a new storefront/i.test(opt));
+                  targetIndex = normalizedOptions.findIndex(
+                    (opt) => !/create a new storefront/i.test(opt)
+                  );
                   if (targetIndex === -1) targetIndex = 0;
                 }
-    
+
                 const selectedLine = storefrontOptions[targetIndex];
-                let urlMatch = selectedLine?.match(/https?:\/\/[a-zA-Z0-9-]+\.dev/);
+                let urlMatch = selectedLine?.match(
+                  /https?:\/\/[a-zA-Z0-9-]+\.dev/
+                );
                 if (!urlMatch) {
                   // fallback to any https URL if Hydrogen dev storefront isn't found
                   urlMatch = selectedLine?.match(/https?:\/\/[^\s]+/);
                 }
                 let selectedUrl = urlMatch ? urlMatch[0] : null;
-    
+
                 if (selectedUrl) {
-                  selectedUrl = selectedUrl.replace(/^[()\[\]<>{},]+|[()\[\]<>{},]+$/g, "");
+                  selectedUrl = selectedUrl ? selectedUrl.replace(
+                    /^[()\[\]<>{},]+|[()\[\]<>{},]+$/g,
+                    ""
+                  ) : "";
                   if (storeDetails) {
-                    prisma.stores.update({
-                      where: { store_id: storeDetails.store_id },
-                      data: { storeUrl: selectedUrl, status: "active" },
-                    }).catch(e => console.error("DB update failed (retry):", e));
+                    const withoutProtocol = message?.shopifyUrl ? message.shopifyUrl.replace(
+                      /^https?:\/\//,
+                      ""
+                    ) : "";
+                    const storeName =
+                      withoutProtocol.split(".myshopify.com")[0];
+
+                    prisma.stores
+                      .update({
+                        where: { store_id: storeDetails.store_id },
+                        data: {
+                          storeUrl: selectedUrl,
+                          status: "active",
+                          shopifyUrl: `https://admin.shopify.com/store/${storeName}/hydrogen`,
+                        },
+                      })
+                      .catch((e) =>
+                        console.error("DB update failed (retry):", e)
+                      );
                   }
                   urlCaptured = true;
                   socket.emit("shopify:storeurl", selectedUrl);
                   socket.emit("shopify:status", "Store URL captured on retry");
                   console.log("✅ URL captured on retry:", selectedUrl);
-    
+
                   triggerDeployment(themeDir);
                   return; // Exit early
                 }
-    
+
                 // If no URL captured, navigate with arrow keys
                 if (!urlCaptured) {
-                  const cursorLineIndex = storefrontOptions.findIndex(l => l.includes("❯"));
-                  let currentIndex = cursorLineIndex === -1 ? 0 : cursorLineIndex;
+                  const cursorLineIndex = storefrontOptions.findIndex((l) =>
+                    l.includes("❯")
+                  );
+                  let currentIndex =
+                    cursorLineIndex === -1 ? 0 : cursorLineIndex;
                   const steps = targetIndex - currentIndex;
-    
+
                   if (steps === 0) {
                     setTimeout(() => relink.write("\r"), 200);
                   } else {
@@ -966,13 +598,16 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
                       }
                     }, 150);
                   }
-    
-                  socket.emit("shopify:status", `Selecting storefront: ${targetStorefront}`);
+
+                  socket.emit(
+                    "shopify:status",
+                    `Selecting storefront: ${targetStorefront}`
+                  );
                 }
               }
             }
           });
-    
+
           relink.onExit(() => {
             if (navInterval) clearInterval(navInterval);
             if (!urlCaptured) {
@@ -983,13 +618,12 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
           console.error("Relink attempt failed:", e);
         }
       };
-    
+
       try {
         execSync("shopify auth logout", {});
-    
-        const ptyProcess = pty.spawn(
+        const ptyProcessLogin = pty.spawn(
           "shopify",
-          ["hydrogen", "link", "--path", `${themeDir}`],
+          ["hydrogen", "login", "--path", `${themeDir}`],
           {
             name: "xterm-256color",
             cwd: themeDir,
@@ -998,146 +632,545 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
             rows: 30,
           }
         );
-    
-        let storefrontBuffer = "";
-        let menuHandled = false;
-        let nameSubmitted = false;
-    
-        ptyProcess.onData((data) => {
+
+        ptyProcessLogin.onData((data) => {
           process.stdout.write(data);
-    
+
           // Handle auth code
-          const codeMatch = data.match(/User verification code:\s*([A-Z0-9-]+)/);
+          const codeMatch = data.match(
+            /User verification code:\s*([A-Z0-9-]+)/
+          );
           if (codeMatch) {
-            socket.emit("shopify:authcode", codeMatch[1]);
+            console.log("shopify:authcode", codeMatch[1]);
           }
-    
+
           // Handle browser open
-          if (data.includes("Press any key to open the login page on your browser")) {
-            setTimeout(() => ptyProcess.write("\r"), 500);
-            socket.emit("shopify:status", "Open Browser");
+          if (
+            data.includes(
+              "Press any key to open the login page on your browser"
+            )
+          ) {
+            setTimeout(() => ptyProcessLogin.write("\r"), 500);
+            console.log("shopify:status", "Open Browser");
           }
-    
+
           // Handle auth URL
           if (data.includes("Opened link to start the auth process")) {
             const authUrl = data.match(
               /https:\/\/accounts\.shopify\.com\/activate-with-code\?device_code%5Buser_code%5D=[A-Z0-9\-]+/
             );
             if (authUrl) {
+              console.log("shopify:authurl", authUrl[0]);
               socket.emit("shopify:authurl", authUrl[0]);
             }
           }
-    
+
           // Handle shop selection
           if (data.includes("?  Select a shop to log in to:")) {
-            setTimeout(() => ptyProcess.write("\r"), 500);
-            socket.emit("shopify:status", "Select Shop");
+            setTimeout(() => ptyProcessLogin.write("\r"), 500);
+            console.log("shopify:status", "Select Shop");
           }
-    
-          // Handle storefront selection
-          if (data.includes("?  Select a Hydrogen storefront to link:")) {
-            storefrontBuffer = "";
-            menuHandled = false;
+        });
+
+        ptyProcessLogin.onExit(({ exitCode, signal }) => {
+          if (exitCode === 0) {
+            console.log("✅ Hydrogen Login successful");
+            hydrogenReLink();
+            console.log("shopify:status", "Login Successful");
+          } else {
+            console.log("❌ Hydrogen login failed");
+            console.error(
+              "shopify:failure",
+              "Login Failure: " + (signal || exitCode)
+            );
+            //   finalizeProcess(themeDir, true);
           }
-    
-          if (storefrontBuffer !== null) {
-            storefrontBuffer += data;
-    
-            if (!menuHandled && storefrontBuffer.includes("Press ↑↓")) {
-              menuHandled = true;
-    
-              const lines = storefrontBuffer
-                .replace(/\x1b\[[0-9;]*m/g, "")
-                .split("\n")
-                .map(line => line.trim())
-                .filter(Boolean);
-    
-              const storefrontOptions = lines.filter(line =>
-                /https?:\/\/[^\s]+/.test(line) && !line.includes("Create a new storefront")
-              );
-    
-              const targetName = (message.storefrontName || message.name).trim().toLowerCase();
-              let targetExists = false;
-    
-              for (const option of storefrontOptions) {
-                if (option.toLowerCase().includes(targetName)) {
-                  targetExists = true;
-                  const urlMatch = option.match(/https?:\/\/[^\s]+/);
-                  if (urlMatch) {
-                    const selectedUrl = urlMatch[0];
-                    if (storeDetails) {
-                      prisma.stores.update({
-                        where: { store_id: storeDetails.store_id },
-                        data: { storeUrl: selectedUrl, status: "active" },
-                      }).catch(e => console.error("DB update failed:", e));
+        });
+        function hydrogenReLink() {
+          const ptyProcess = pty.spawn(
+            "shopify",
+            ["hydrogen", "link", "--path", `${themeDir}`],
+            {
+              name: "xterm-256color",
+              cwd: themeDir,
+              env: process.env,
+              cols: 80,
+              rows: 30,
+            }
+          );
+
+          let storefrontBuffer = "";
+          let menuHandled = false;
+          let nameSubmitted = false;
+
+          ptyProcess.onData((data) => {
+            process.stdout.write(data);
+
+            // Handle auth code
+            // const codeMatch = data.match(
+            //   /User verification code:\s*([A-Z0-9-]+)/
+            // );
+            //   socket.emit("shopify:authcode", codeMatch[1]);
+            // }
+
+            // // Handle browser open
+            // if (
+            //   data.includes(
+            //     "Press any key to open the login page on your browser"
+            //   )
+            // ) {
+            //   setTimeout(() => ptyProcess.write("\r"), 500);
+            //   socket.emit("shopify:status", "Open Browser");
+            // }
+
+            // // Handle auth URL
+            // if (data.includes("Opened link to start the auth process")) {
+            //   const authUrl = data.match(
+            //     /https:\/\/accounts\.shopify\.com\/activate-with-code\?device_code%5Buser_code%5D=[A-Z0-9\-]+/
+            //   );
+            //   if (authUrl) {
+            //     socket.emit("shopify:authurl", authUrl[0]);
+            //   }
+            // }
+
+            // Handle shop selection
+            // if (data.includes("?  Select a shop to log in to:")) {
+            //   setTimeout(() => ptyProcess.write("\r"), 500);
+            //   socket.emit("shopify:status", "Select Shop");
+            // }
+
+            // Handle storefront selection
+            if (data.includes("?  Select a Hydrogen storefront to link:")) {
+              storefrontBuffer = "";
+              menuHandled = false;
+            }
+
+            if (storefrontBuffer !== null) {
+              storefrontBuffer += data;
+
+              if (!menuHandled && storefrontBuffer.includes("Press ↑↓")) {
+                menuHandled = true;
+
+                const lines = storefrontBuffer
+                  ? storefrontBuffer
+                      .replace(/\x1b\[[0-9;]*m/g, "")
+                      .split("\n")
+                      .map((line) => line.trim())
+                      .filter(Boolean)
+                  : [];
+
+                const storefrontOptions = lines.filter(
+                  (line) =>
+                    /https?:\/\/[^\s]+/.test(line) &&
+                    !line.includes("Create a new storefront")
+                );
+
+                const targetName = (message.storefrontName || message.name)
+                  .trim()
+                  .toLowerCase();
+                let targetExists = false;
+
+                for (const option of storefrontOptions) {
+                  if (option.toLowerCase().includes(targetName)) {
+                    targetExists = true;
+                    const urlMatch = option.match(/https?:\/\/[^\s]+/);
+                    if (urlMatch) {
+                      const selectedUrl = urlMatch[0];
+                      if (storeDetails) {
+                        prisma.stores
+                          .update({
+                            where: { store_id: storeDetails.store_id },
+                            data: { storeUrl: selectedUrl, status: "active" },
+                          })
+                          .catch((e) => console.error("DB update failed:", e));
+                      }
+                      urlCaptured = true;
+                      socket.emit("shopify:storeurl", selectedUrl);
+                      console.log("✅ URL captured:", selectedUrl);
                     }
-                    urlCaptured = true;
-                    socket.emit("shopify:storeurl", selectedUrl);
-                    console.log("✅ URL captured:", selectedUrl);
+                    break;
                   }
-                  break;
+                }
+
+                if (targetExists) {
+                  socket.emit(
+                    "shopify:status",
+                    "Selecting existing storefront"
+                  );
+                  setTimeout(() => ptyProcess.write("\r"), 500);
+                } else {
+                  socket.emit("shopify:status", "Creating new storefront");
+                  setTimeout(() => ptyProcess.write("\r"), 500);
                 }
               }
-    
-              if (targetExists) {
-                socket.emit("shopify:status", "Selecting existing storefront");
-                setTimeout(() => ptyProcess.write("\r"), 500);
+            }
+
+            // Handle new storefront name input
+            if (data.includes("?  New storefront name:") && !nameSubmitted) {
+              nameSubmitted = true;
+              const storeName = (
+                message.name ||
+                message.storefrontName ||
+                "hydrogen-storefront"
+              ).trim();
+              setTimeout(() => {
+                ptyProcess.write(storeName);
+                setTimeout(() => ptyProcess.write("\r"), 100);
+              }, 100);
+              socket.emit(
+                "shopify:status",
+                `Creating storefront: ${storeName}`
+              );
+            }
+
+            // Handle errors
+            if (data.includes("Could not create storefront")) {
+              const noAnsi = data ? data.replace(/\x1b\[[0-9;]*m/g, "") : "";
+              const messageLines = noAnsi
+                .split("\n")
+                .map((line) => line.trim())
+                .filter((line) => line && !/^[-─╭╰╮╯│]+$/.test(line))
+                .map((line) => line ? line.replace(/^│/, "").replace(/│$/, "").trim() : "");
+              const finalMessage = messageLines.join(" ");
+              socket.emit("shopify:failure", finalMessage);
+            }
+          });
+
+          ptyProcess.onExit(({ exitCode, signal }) => {
+            if (exitCode === 0) {
+              console.log("✅ Hydrogen link successful");
+              socket.emit("shopify:status", "Link Successful");
+
+              if (!urlCaptured) {
+                socket.emit("shopify:status", "Retrying link to capture URL");
+                setTimeout(() => attemptRelinkForUrl(), 1000);
               } else {
-                socket.emit("shopify:status", "Creating new storefront");
-                setTimeout(() => ptyProcess.write("\r"), 500);
+                triggerDeployment(themeDir);
               }
-            }
-          }
-    
-          // Handle new storefront name input
-          if (data.includes("?  New storefront name:") && !nameSubmitted) {
-            nameSubmitted = true;
-            const storeName = (message.name || message.storefrontName || "hydrogen-storefront").trim();
-            setTimeout(() => {
-              ptyProcess.write(storeName);
-              setTimeout(() => ptyProcess.write("\r"), 100);
-            }, 100);
-            socket.emit("shopify:status", `Creating storefront: ${storeName}`);
-          }
-    
-          // Handle errors
-          if (data.includes("Could not create storefront")) {
-            const noAnsi = data.replace(/\x1b\[[0-9;]*m/g, "");
-            const messageLines = noAnsi
-              .split("\n")
-              .map(line => line.trim())
-              .filter(line => line && !/^[-─╭╰╮╯│]+$/.test(line))
-              .map(line => line.replace(/^│/, "").replace(/│$/, "").trim());
-            const finalMessage = messageLines.join(" ");
-            socket.emit("shopify:failure", finalMessage);
-          }
-        });
-    
-        ptyProcess.onExit(({ exitCode, signal }) => {
-          if (exitCode === 0) {
-            console.log("✅ Hydrogen link successful");
-            socket.emit("shopify:status", "Link Successful");
-    
-            if (!urlCaptured) {
-              socket.emit("shopify:status", "Retrying link to capture URL");
-              setTimeout(() => attemptRelinkForUrl(), 1000);
             } else {
-              triggerDeployment(themeDir);
+              console.log("❌ Hydrogen link failed");
+              socket.emit(
+                "shopify:failure",
+                "Link Failure: " + (signal || exitCode)
+              );
+              finalizeProcess(themeDir, true);
             }
-          } else {
-            console.log("❌ Hydrogen link failed");
-            socket.emit("shopify:failure", "Link Failure: " + (signal || exitCode));
-            finalizeProcess(themeDir, true);
-          }
-        });
+          });
+        }
       } catch (error) {
         console.log("❌ Hydrogen link failed");
         socket.emit("shopify:failure", "Link Failure");
         finalizeProcess(themeDir, true);
       }
     }
-    
-    
+
+    // function hydrogenLink(themeDir) {
+    //   let urlCaptured = false;
+    //   let deploymentTriggered = false;
+
+    //   // --- Helpers ---
+    //   function triggerDeploymentOnce(themeDir) {
+    //     if (!deploymentTriggered) {
+    //       deploymentTriggered = true;
+    //       setTimeout(() => hydrogenDeployment(themeDir), 1000);
+    //     }
+    //   }
+
+    //   function attemptHydrogenLink(themeDir, isRetry = false) {
+    //     const ptyProcess = pty.spawn(
+    //       "shopify",
+    //       ["hydrogen", "link", "--path", themeDir],
+    //       {
+    //         name: "xterm-256color",
+    //         cwd: themeDir,
+    //         env: process.env,
+    //         cols: 80,
+    //         rows: 30,
+    //       }
+    //     );
+
+    //     let storefrontBuffer = "";
+    //     let menuHandled = false;
+    //     let nameSubmitted = false;
+    //     let navInterval = null;
+
+    //     ptyProcess.onData((data) => {
+    //       process.stdout.write(data);
+
+    //       // Auth code
+    //       // const codeMatch = data.match(/User verification code:\s*([A-Z0-9-]+)/);
+    //       // if (codeMatch) socket.emit("shopify:authcode", codeMatch[1]);
+
+    //       // // Browser open
+    //       // if (data.includes("Press any key to open the login page on your browser")) {
+    //       //   setTimeout(() => ptyProcess.write("\r"), 300);
+    //       //   socket.emit("shopify:status", "Open Browser");
+    //       // }
+
+    //       // // Auth URL
+    //       // if (data.includes("Opened link to start the auth process")) {
+    //       //   const authUrl = data.match(/https:\/\/accounts\.shopify\.com\/activate-with-code\?device_code%5Buser_code%5D=[A-Z0-9\-]+/);
+    //       //   if (authUrl) socket.emit("shopify:authurl", authUrl[0]);
+    //       // }
+
+    //       // // Shop selection
+    //       // if (data.includes("?  Select a shop to log in to:")) {
+    //       //   setTimeout(() => ptyProcess.write("\r"), 300);
+    //       //   socket.emit("shopify:status", "Select Shop");
+    //       // }
+
+    //       // Already linked
+    //       if (data.includes("Your project is currently linked")) {
+    //         setTimeout(() => ptyProcess.write("\r"), 300);
+    //         socket.emit("shopify:status", "Link Exists");
+    //       }
+
+    //       // Start buffering storefront selection
+    //       if (
+    //         data.includes(
+    //           "?  Select a Hydrogen storefront to link:" ||
+    //             data.includes(
+    //               "You haven't linked your project to a storefront yet"
+    //             )
+    //         )
+    //       ) {
+    //         storefrontBuffer = "";
+    //         menuHandled = false;
+    //       }
+
+    //       // Parse storefront list
+    //       // Parse storefront list
+    //       if (storefrontBuffer !== null) {
+    //         storefrontBuffer += data;
+
+    //         if (!menuHandled && storefrontBuffer.includes("Press ↑↓")) {
+    //           menuHandled = true;
+
+    //           const noAnsi = storefrontBuffer.replace(/\x1b\[[0-9;]*m/g, "");
+    //           const lines = noAnsi
+    //             .split("\n")
+    //             .map((l) => l.trim())
+    //             .filter(Boolean);
+
+    //           const storefrontOptions = lines.filter(
+    //             (line) =>
+    //               /(https?:\/\/[^\s]+)/.test(line) ||
+    //               /Create a new storefront/i.test(line)
+    //           );
+
+    //           // ✅ First-time link: only "Create a new storefront"
+    //           if (
+    //             storefrontOptions.length === 1 &&
+    //             /Create a new storefront/i.test(storefrontOptions[0])
+    //           ) {
+    //             socket.emit(
+    //               "shopify:status",
+    //               "No existing storefronts, creating new one"
+    //             );
+
+    //             setTimeout(() => ptyProcess.write("\r"), 300); // select "Create a new storefront"
+    //             return; // let CLI prompt for name next
+    //           }
+
+    //           // --- Existing storefront flow ---
+    //           const normalizedOptions = storefrontOptions.map((l) =>
+    //             l
+    //               .replace(/^❯?\s*/, "")
+    //               .replace(/\s+\[default\]$/, "")
+    //               .trim()
+    //           );
+
+    //           const targetStorefront = (message.storefrontName || message.name)
+    //             .trim()
+    //             .toLowerCase();
+    //           let targetIndex = normalizedOptions.findIndex(
+    //             (opt) =>
+    //               opt.toLowerCase().includes(targetStorefront) &&
+    //               !/create a new storefront/i.test(opt)
+    //           );
+
+    //           if (targetIndex === -1) {
+    //             targetIndex = normalizedOptions.findIndex(
+    //               (opt) => !/create a new storefront/i.test(opt)
+    //             );
+    //             if (targetIndex === -1) targetIndex = 0;
+    //           }
+
+    //           const selectedLine = storefrontOptions[targetIndex];
+    //           let urlMatch = selectedLine?.match(
+    //             /https?:\/\/[a-zA-Z0-9-]+\.dev/
+    //           );
+    //           if (!urlMatch)
+    //             urlMatch = selectedLine?.match(/https?:\/\/[^\s]+/);
+
+    //           let selectedUrl = urlMatch ? urlMatch[0] : null;
+
+    //           if (selectedUrl) {
+    //             selectedUrl = selectedUrl.replace(
+    //               /^[()\[\]<>{},]+|[()\[\]<>{},]+$/g,
+    //               ""
+    //             );
+    //             urlCaptured = true;
+    //             socket.emit("shopify:storeurl", selectedUrl);
+    //             console.log(
+    //               isRetry ? "✅ URL captured on retry:" : "✅ URL captured:",
+    //               selectedUrl
+    //             );
+    //             triggerDeploymentOnce(themeDir);
+    //             return;
+    //           }
+
+    //           // If no URL captured → simulate navigation
+    //           if (!urlCaptured) {
+    //             const cursorLineIndex = storefrontOptions.findIndex((l) =>
+    //               l.includes("❯")
+    //             );
+    //             let currentIndex = cursorLineIndex === -1 ? 0 : cursorLineIndex;
+    //             const steps = targetIndex - currentIndex;
+
+    //             if (steps === 0) {
+    //               setTimeout(() => ptyProcess.write("\r"), 200);
+    //             } else {
+    //               let moved = 0;
+    //               navInterval = setInterval(() => {
+    //                 if (moved < Math.abs(steps)) {
+    //                   ptyProcess.write(steps > 0 ? "\x1B[B" : "\x1B[A");
+    //                   moved++;
+    //                 } else {
+    //                   clearInterval(navInterval);
+    //                   navInterval = null;
+    //                   setTimeout(() => ptyProcess.write("\r"), 200);
+    //                 }
+    //               }, 150);
+    //             }
+    //             socket.emit(
+    //               "shopify:status",
+    //               `Selecting storefront: ${targetStorefront}`
+    //             );
+    //           }
+    //         }
+    //       }
+
+    //       // New storefront creation
+    //       if (data.includes("?  New storefront name:") && !nameSubmitted) {
+    //         nameSubmitted = true;
+    //         const storeName = (
+    //           message.name ||
+    //           message.storefrontName ||
+    //           "hydrogen-storefront"
+    //         ).trim();
+    //         setTimeout(() => {
+    //           ptyProcess.write(storeName);
+    //           setTimeout(() => ptyProcess.write("\r"), 100);
+    //         }, 100);
+    //         socket.emit("shopify:status", `Creating storefront: ${storeName}`);
+    //       }
+
+    //       // New storefront creation
+    //       if (data.includes("?  New storefront name:") && !nameSubmitted) {
+    //         nameSubmitted = true;
+    //         const storeName = (
+    //           message.name ||
+    //           message.storefrontName ||
+    //           "hydrogen-storefront"
+    //         ).trim();
+    //         setTimeout(() => {
+    //           ptyProcess.write(storeName);
+    //           setTimeout(() => ptyProcess.write("\r"), 100);
+    //         }, 100);
+    //         socket.emit("shopify:status", `Creating storefront: ${storeName}`);
+    //       }
+
+    //       // Error handling
+    //       if (data.includes("Could not create storefront")) {
+    //         const noAnsi = data.replace(/\x1b\[[0-9;]*m/g, "");
+    //         const messageLines = noAnsi
+    //           .split("\n")
+    //           .map((line) => line.trim())
+    //           .filter((line) => line && !/^[-─╭╰╮╯│]+$/.test(line));
+    //         const finalMessage = messageLines.join(" ");
+    //         socket.emit("shopify:failure", finalMessage);
+    //       }
+    //     });
+
+    //     ptyProcess.onExit(({ exitCode }) => {
+    //       if (navInterval) clearInterval(navInterval);
+    //       if (exitCode === 0) {
+    //         console.log("✅ Hydrogen link successful");
+    //         socket.emit("shopify:status", "Link Successful");
+
+    //         if (!urlCaptured && !isRetry) {
+    //           socket.emit("shopify:status", "Retrying link to capture URL");
+    //           setTimeout(() => attemptHydrogenLink(themeDir, true), 1000);
+    //         } else if (urlCaptured) {
+    //           triggerDeploymentOnce(themeDir);
+    //         }
+    //       } else {
+    //         console.log("❌ Hydrogen link failed");
+    //         socket.emit("shopify:failure", "Link Failure: " + exitCode);
+    //         finalizeProcess(themeDir, true);
+    //       }
+    //     });
+    //   }
+
+    //   // --- MAIN FLOW ---
+    //   try {
+    //     execSync("shopify auth logout", {});
+    //     const ptyProcessLogin = pty.spawn(
+    //       "shopify",
+    //       ["hydrogen", "login", "--path", `${themeDir}`],
+    //       {
+    //         name: "xterm-256color",
+    //         cwd: themeDir,
+    //         env: process.env,
+    //         cols: 80,
+    //         rows: 30,
+    //       }
+    //     );
+
+    //     ptyProcessLogin.onData((data) => {
+    //       process.stdout.write(data);
+    //       if (/User verification code:\s*([A-Z0-9-]+)/.test(data))
+    //         console.log("shopify:authcode", RegExp.$1);
+    //       if (
+    //         data.includes(
+    //           "Press any key to open the login page on your browser"
+    //         )
+    //       ) {
+    //         setTimeout(() => ptyProcessLogin.write("\r"), 500);
+    //         console.log("shopify:status", "Open Browser");
+    //       }
+    //       if (data.includes("Opened link to start the auth process")) {
+    //         const authUrl = data.match(
+    //           /https:\/\/accounts\.shopify\.com\/activate-with-code\?device_code%5Buser_code%5D=[A-Z0-9\-]+/
+    //         );
+    //         if (authUrl) {
+    //           console.log("shopify:authurl", authUrl[0]);
+    //           socket.emit("shopify:authurl", authUrl[0]);
+    //         }
+    //       }
+    //       if (data.includes("?  Select a shop to log in to:")) {
+    //         setTimeout(() => ptyProcessLogin.write("\r"), 500);
+    //         console.log("shopify:status", "Select Shop");
+    //       }
+    //     });
+
+    //     ptyProcessLogin.onExit(({ exitCode }) => {
+    //       if (exitCode === 0) {
+    //         console.log("✅ Hydrogen Login successful");
+    //         console.log("shopify:status", "Login Successful");
+    //         attemptHydrogenLink(themeDir, false); // only start linking after login success
+    //       } else {
+    //         console.log("❌ Hydrogen login failed");
+    //         socket.emit("shopify:failure", "Login Failure: " + exitCode);
+    //       }
+    //     });
+    //   } catch (error) {
+    //     console.log("❌ Hydrogen link failed (exception)");
+    //     socket.emit("shopify:failure", "Link Failure");
+    //     finalizeProcess(themeDir, true);
+    //   }
+    // }
 
     // Deployment hydrogen theme process
     function hydrogenDeployment(themeDir) {
@@ -1298,11 +1331,12 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
     }
     // Build env updates
     const hyphenatedStoreName = message.name
-      .trim()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-zA-Z0-9\-]/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-+|-+$/g, "");
+      ? message.name.trim()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-zA-Z0-9\-]/g, "-")
+          .replace(/-+/g, "-")
+          .replace(/^-+|-+$/g, "")
+      : "";
 
     // Only update keys that are actually provided (no defaults),
     // required fields (name/email/phone) will still be updated.
@@ -1328,6 +1362,7 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
     setIfPresent("VITE_SHOPIFY_EMAIL", message.shopifyEmail);
     setIfPresent("VITE_SHOPIFY_ADMIN_ACCESS_TOKEN", message.shopifyAdminToken);
     setIfPresent("VITE_COMPANY_NAME", message.companyName);
+    setIfPresent("VITE_COMPANY_CITY", message.companyCity);
     setIfPresent("VITE_COMPANY_ADDRESS", message.companyAddress);
     setIfPresent("VITE_SIREN_NUMBER", message.companyBusinessNumber || "");
     setIfPresent("VITE_PP_LAST_UPDATED_DATE", message.policyUpdatedAt || "");
@@ -1498,7 +1533,7 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
             if (storefrontBuffer.includes("Press ↑") && !selectingStorefront) {
               selectingStorefront = true;
 
-              const noAnsi = storefrontBuffer.replace(/\x1b\[[0-9;]*m/g, "");
+              const noAnsi = storefrontBuffer ? storefrontBuffer.replace(/\x1b\[[0-9;]*m/g, "") : "";
               const lines = noAnsi
                 .split("\n")
                 .map((l) => l.trim())
@@ -1513,10 +1548,11 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
 
               // normalize
               const normalizedOptions = storefrontOptions.map((l) =>
-                l
-                  .replace(/^❯?\s*/, "")
-                  .replace(/\s+\[default\]$/, "")
-                  .trim()
+                l ? l
+                    .replace(/^❯?\s*/, "")
+                    .replace(/\s+\[default\]$/, "")
+                    .trim()
+                  : ""
               );
 
               const targetStorefront = (message.storefrontName || message.name)
@@ -1534,7 +1570,10 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
               let selectedUrl = urlMatch ? urlMatch[0] : null;
 
               if (selectedUrl) {
-                selectedUrl = selectedUrl.replace(/^[()\[\]<>{},]+|[()\[\]<>{},]+$/g, "");
+                selectedUrl = selectedUrl ? selectedUrl.replace(
+                  /^[()\[\]<>{},]+|[()\[\]<>{},]+$/g,
+                  ""
+                ) : "";
                 try {
                   await prisma.stores.update({
                     where: { store_id: storeDetails.store_id },
@@ -1650,7 +1689,7 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
           }
 
           if (data.includes("Could not create storefront")) {
-            const noAnsi = data.replace(/\x1b\[[0-9;]*m/g, "");
+            const noAnsi = data ? data.replace(/\x1b\[[0-9;]*m/g, "") : "";
             const messageLines = noAnsi
               .split("\n")
               .map((line) => line.trim())
@@ -1661,7 +1700,7 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
                   !/^╭.*╮$/.test(line) &&
                   !/^╰.*╯$/.test(line)
               )
-              .map((line) => line.replace(/^│/, "").replace(/│$/, "").trim());
+              .map((line) => line ? line.replace(/^│/, "").replace(/│$/, "").trim() : "");
             const finalMessage = messageLines.join(" ");
             socket.emit("shopify:failure", finalMessage);
           }
@@ -1749,5 +1788,739 @@ VITE_DISCOVER_OUR_COLLECTIONS=${message?.discoverOurCollections || []}
     }
 
     hydrogenLinkUpdate(themeDir);
+  });
+
+  // Publish collections/products from local theme data
+  socket.on("publish:collections", async (payload) => {
+    try {
+      // Validate input
+      // const payload = JSON.parse(message);
+      if (
+        !payload ||
+        !payload.storeName ||
+        typeof payload.storeName !== "string"
+      ) {
+        socket.emit("publish:error", {
+          stage: "init",
+          message: "Invalid or missing storeName",
+        });
+        return;
+      }
+
+      const storeName = payload.storeName.trim();
+      const storeDir = path.resolve("./" + storeName);
+
+      // 1) Validate store folder exists
+      if (!fs.existsSync(storeDir)) {
+        socket.emit("publish:not_found", {
+          stage: "store",
+          message: "Store folder not found",
+          storeDir,
+        });
+        return;
+      }
+
+      // 2) Read .env for CATEGORY and LANGUAGE
+      const envPath = path.join(storeDir, ".env");
+      if (!fs.existsSync(envPath)) {
+        socket.emit("publish:not_found", {
+          stage: "env",
+          message: ".env file not found in store folder",
+          envPath,
+        });
+        return;
+      }
+
+      const envContent = fs.readFileSync(envPath, "utf8");
+      const envLines = envContent.split(/\r?\n/);
+      const envMap = {};
+      for (const line of envLines) {
+        if (!line || line.trim().startsWith("#")) continue;
+        const eq = line.indexOf("=");
+        if (eq === -1) continue;
+        const key = line
+          .slice(0, eq)
+          .trim()
+          .replace(/^export\s+/, "");
+        const value = line
+          .slice(eq + 1)
+          .trim()
+          .replace(/^"|"$/g, "");
+        if (key) envMap[key] = value;
+      }
+
+      const category = envMap["VITE_CATEGORY"];
+      const language = envMap["VITE_LANGUAGE"];
+
+      if (!category || !language) {
+        socket.emit("publish:error", {
+          stage: "env",
+          message: "VITE_CATEGORY or VITE_LANGUAGE missing in .env",
+        });
+        return;
+      }
+
+      socket.emit("publish:category_language", { category, language });
+
+      // 3) Resolve theme data folder (e.g., deco_en)
+      const themeFolderName = `${category}_${language}`;
+      const themeFolderPath = path.resolve(`./${themeFolderName}`);
+      if (
+        !fs.existsSync(themeFolderPath) ||
+        !fs.lstatSync(themeFolderPath).isDirectory()
+      ) {
+        socket.emit("publish:not_found", {
+          stage: "theme_folder",
+          message: "Theme folder not found",
+          themeFolderPath,
+        });
+        return;
+      }
+
+      // 4) Find collections CSV file
+      const preferredCsvName = `${themeFolderName}.csv`;
+      let collectionsCsvPath = path.join(themeFolderPath, preferredCsvName);
+
+      if (!fs.existsSync(collectionsCsvPath)) {
+        // Fallback: search for any CSV matching the theme prefix, else any .csv
+        const files = fs.readdirSync(themeFolderPath);
+        const candidates = files.filter((f) =>
+          f.toLowerCase().endsWith(".csv")
+        );
+        const prefixed = candidates.find((f) =>
+          f.toLowerCase().startsWith(themeFolderName.toLowerCase())
+        );
+        collectionsCsvPath = prefixed
+          ? path.join(themeFolderPath, prefixed)
+          : null;
+      }
+
+      if (!collectionsCsvPath || !fs.existsSync(collectionsCsvPath)) {
+        socket.emit("publish:not_found", {
+          stage: "collections_csv",
+          message: "Collections CSV not found",
+          themeFolderPath,
+        });
+        return;
+      }
+
+      // 5) Read file contents
+      let csvContent = null;
+      try {
+        csvContent = fs.readFileSync(collectionsCsvPath, "utf8");
+      } catch (e) {
+        socket.emit("publish:error", {
+          stage: "collections_read",
+          message: e.message,
+        });
+        return;
+      }
+
+      // 6) Parse CSV with proper quoted field handling
+      function parseCSVLine(line) {
+        const result = [];
+        let current = "";
+        let inQuotes = false;
+        let i = 0;
+
+        while (i < line.length) {
+          const char = line[i];
+
+          if (char === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+              // Escaped quote
+              current += '"';
+              i += 2;
+            } else {
+              // Toggle quote state
+              inQuotes = !inQuotes;
+              i++;
+            }
+          } else if (char === "," && !inQuotes) {
+            // End of field
+            result.push(current.trim());
+            current = "";
+            i++;
+          } else {
+            current += char;
+            i++;
+          }
+        }
+
+        // Add the last field
+        result.push(current.trim());
+        return result;
+      }
+
+      const lines = csvContent
+        .split(/\r?\n/)
+        .filter((l) => l.trim().length > 0);
+      if (lines.length < 2) {
+        socket.emit("publish:error", {
+          stage: "csv_parse",
+          message: "CSV has no rows",
+        });
+        return;
+      }
+      const header = parseCSVLine(lines[0]);
+      const rows = lines.slice(1).map(parseCSVLine);
+
+      // 7) Resolve Shopify Admin API URL + token
+      function buildAdminUrlFromEnv(map) {
+        const direct =
+          map["SHOPIFY_ADMIN_API_URL"] || map["VITE_SHOPIFY_ADMIN_API_URL"];
+        if (direct && direct.trim()) return direct.trim();
+        const domain =
+          map["VITE_SHOPIFY_URL"] ||
+          map["SHOPIFY_STORE_DOMAIN"] ||
+          map["SHOPIFY_STORE_URL"] ||
+          "";
+        if (!domain) return null;
+        const clean = domain ? domain.replace(/^https?:\/\//, "") : "";
+        return `https://${clean}/admin/api/2025-07/graphql.json`;
+      }
+      const ADMIN_URL = buildAdminUrlFromEnv(envMap);
+      const ADMIN_TOKEN =
+        envMap["SHOPIFY_ADMIN_ACCESS_TOKEN"] ||
+        envMap["VITE_SHOPIFY_ADMIN_ACCESS_TOKEN"] ||
+        envMap["ADMIN_ACCESS_TOKEN"] ||
+        "";
+      if (!ADMIN_URL || !ADMIN_TOKEN) {
+        socket.emit("publish:error", {
+          stage: "env",
+          message: "Missing Shopify Admin API URL or Access Token",
+        });
+        return;
+      }
+      const queryForMetafields = `query MetafieldDefinitions($ownerType: MetafieldOwnerType!, $first: Int) { metafieldDefinitions(ownerType: $ownerType, first: $first) { nodes { name namespace key type { name } } } }`;
+      const metafieldsVariables = {
+        ownerType: "COLLECTION",
+        first: 5,
+      };
+      let existingMetaField = null;
+      const data = await fetch(ADMIN_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": ADMIN_TOKEN,
+        },
+        body: JSON.stringify({
+          query: queryForMetafields,
+          variables: metafieldsVariables,
+        }),
+      });
+      existingMetaField = await data.json();
+      const nodes = existingMetaField?.data?.metafieldDefinitions?.nodes || [];
+      const createMetaFieldMutation = `mutation CreateMetafieldDefinition($definition: MetafieldDefinitionInput!) { metafieldDefinitionCreate(definition: $definition) { createdDefinition { id name } userErrors { field message code } } }`;
+      const collectionMetafieldsVariables = {
+        definition: {
+          name: "Theme Types",
+          namespace: "custom",
+          key: "theme_types",
+          description: "A list of materials used to make the product.",
+          type: "single_line_text_field",
+          ownerType: "COLLECTION",
+          pin: true,
+          access: {
+            storefront: "PUBLIC_READ",
+          },  
+        },
+      };
+      if (nodes.length === 0) {
+        console.log("Nodes array is empty");
+        const createMetaFieldMutationResponse = await fetch(ADMIN_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Shopify-Access-Token": ADMIN_TOKEN,
+          },
+          body: JSON.stringify({
+            query: createMetaFieldMutation,
+            variables: collectionMetafieldsVariables,
+          }),
+        });
+        const existingMetaField = await createMetaFieldMutationResponse.json();
+        console.log("createMetaFieldMutation", existingMetaField);
+      } else {
+        const hasThemeTypes = nodes.some(
+          (node) =>
+            node.name === "Theme Types" &&
+            node.namespace === "custom" &&
+            node.key === "theme_types"
+        );
+
+        if (hasThemeTypes) {
+          console.log("Found Theme Types with correct namespace and key!");
+        } else {
+          console.log("Theme Types not found");
+          const createMetaFieldMutationResponse = await fetch(ADMIN_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Shopify-Access-Token": ADMIN_TOKEN,
+            },
+            body: JSON.stringify({
+              query: createMetaFieldMutation,
+              variables: collectionMetafieldsVariables,
+            }),
+          });
+          const existingMetaField =
+            await createMetaFieldMutationResponse.json();
+          console.log("createMetaFieldMutation", existingMetaField);
+        }
+      }
+
+      async function shopifyGraphQL(query, variables) {
+        const rsp = await fetch(ADMIN_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Shopify-Access-Token": ADMIN_TOKEN,
+          },
+          body: JSON.stringify({ query, variables }),
+        });
+        if (!rsp.ok) {
+          throw new Error(`GraphQL HTTP error ${rsp.status} ${rsp.statusText}`);
+        }
+        return rsp.json();
+      }
+
+      async function stagedUploadImage(imageSrc) {
+        const stagedMutation = `
+          mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {
+            stagedUploadsCreate(input: $input) {
+              stagedTargets { url resourceUrl parameters { name value } }
+              userErrors { field message }
+            }
+          }
+        `;
+        const input = [
+          {
+            resource: "IMAGE",
+            filename: "collection-image.jpg",
+            mimeType: "image/jpeg",
+            httpMethod: "POST",
+          },
+        ];
+        const staged = await shopifyGraphQL(stagedMutation, { input });
+        const targets = staged?.data?.stagedUploadsCreate?.stagedTargets;
+        if (!Array.isArray(targets) || targets.length === 0)
+          throw new Error("No staged target returned");
+        const { url, resourceUrl, parameters } = targets[0];
+        if (!url || !resourceUrl || !parameters)
+          throw new Error("Incomplete staged upload target");
+        const form = new FormData();
+        for (const p of parameters) form.append(p.name, p.value);
+        const imgRsp = await fetch(imageSrc);
+        if (!imgRsp.ok)
+          throw new Error(`Failed to fetch image: ${imgRsp.status}`);
+        const blob = await imgRsp.blob();
+        form.append("file", blob, "collection-image.jpg");
+        const uploadRsp = await fetch(url, { method: "POST", body: form });
+        if (!uploadRsp.ok)
+          throw new Error(`Failed staged upload: ${uploadRsp.status}`);
+        return resourceUrl;
+      }
+
+      const collectionCreateMutation = `
+        mutation CollectionCreate($input: CollectionInput!) {
+          collectionCreate(input: $input) {
+            collection { id title handle }
+            userErrors { field message }
+          }
+        }
+      `;
+
+      const publishCollectionMutation = `
+ mutation PublishablePublish($collectionId: ID!, $publicationId: ID!) {
+    publishablePublish(id: $collectionId, input: {publicationId: $publicationId}) {
+      publishable {
+        publishedOnPublication(publicationId: $publicationId)
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+    `;
+
+      const publicationsQuery = `
+        query GetPublications {
+          publications(first: 20) {
+            edges {
+              node { id name }
+            }
+          }
+        }
+      `;
+
+      // 8) Fetch publications and resolve selected publications
+      let publicationEdges = [];
+      try {
+        const pubs = await shopifyGraphQL(publicationsQuery, {});
+        publicationEdges = pubs?.data?.publications?.edges || [];
+      } catch (e) {
+        socket.emit("publish:error", {
+          stage: "publications",
+          message: e?.message || String(e),
+        });
+        return;
+      }
+
+      const allPublicationIds = publicationEdges
+        .map((e) => e?.node?.id)
+        .filter(Boolean);
+      const allPublicationNames = publicationEdges
+        .map((e) => e?.node?.name)
+        .filter(Boolean);
+
+      // Client may send selected publication names; if not, publish to all
+      const selectedPublicationNames = Array.isArray(
+        payload?.selectedPublicationNames
+      )
+        ? payload.selectedPublicationNames.filter(
+            (n) => typeof n === "string" && n.trim().length > 0
+          )
+        : allPublicationNames;
+
+      const nameToId = new Map(
+        publicationEdges.map((e) => [e?.node?.name, e?.node?.id])
+      );
+      const selectedPublicationIds = selectedPublicationNames
+        .map((n) => nameToId.get(n))
+        .filter((id) => typeof id === "string" && id.length > 0);
+
+      // Fallback: if none resolved, use all
+      const publicationIdsToUse =
+        selectedPublicationIds.length > 0
+          ? selectedPublicationIds
+          : allPublicationIds;
+
+      // 9) Iterate rows sequentially
+      let createdCount = 0;
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const record = {};
+        header.forEach((key, idx) => {
+          record[key] = row[idx] ?? "";
+        });
+
+        // Simple validation and formatting for rules
+        const column = (record.type || "TITLE")
+          ? (record.type || "TITLE").toUpperCase().replace(/\s+/g, "_")
+          : "TITLE";
+        // Fix common typo
+        const normalizedColumn = column && column.startsWith("VARAINT_")
+          ? column.replace(/^VARAINT_/, "VARIANT_")
+          : column;
+
+        const relation = (record.operator || "CONTAINS")
+          ? (record.operator || "CONTAINS").toUpperCase().replace(/\s+/g, "_")
+          : "CONTAINS";
+        const condition = record.value || "PRODUCT";
+
+        const rules = [
+          {
+            column: normalizedColumn,
+            relation: relation,
+            condition: condition,
+          },
+        ];
+        const appliedDisjunctively =
+          String(record.match_any).toLowerCase().trim() === "true" ||
+          record.match_any === 1 ||
+          record.match_any === "1";
+
+        // Build collectionInput exactly as requested
+        const collectionInput = {
+          title: record.title,
+          handle: record.handle,
+          descriptionHtml:
+            record.description || "Collection created from CSV import",
+          sortOrder: "BEST_SELLING",
+          ruleSet: { appliedDisjunctively, rules },
+          image_src: record.image_src,
+          metafields: [
+            {
+              namespace: "custom",
+              key: "theme_types",
+              value: envMap["VITE_STORE_NAME"] || storeName,
+              type: "single_line_text_field",
+            },
+          ],
+        };
+
+        // Image staged upload if image_src exists (map to input.image for GraphQL)
+        if (collectionInput.image_src) {
+          try {
+            socket.emit("publish:collections:progress", {
+              index: i,
+              stage: "image_staged_upload",
+              handle: record.handle,
+              title: record.title,
+            });
+            const resourceUrl = await stagedUploadImage(
+              collectionInput.image_src
+            );
+            collectionInput.image = {
+              src: resourceUrl,
+              altText: record.title || "",
+            };
+          } catch (e) {
+            socket.emit("publish:collections:error", {
+              index: i,
+              title: record.title,
+              handle: record?.hnadle,
+              message: e?.message || String(e),
+            });
+            continue;
+          }
+        }
+
+        try {
+          socket.emit("publish:collections:progress", {
+            index: i,
+            stage: "create_mutation",
+            handle: record.handle,
+            title: record.title,
+          });
+          const result = await shopifyGraphQL(collectionCreateMutation, {
+            input: collectionInput,
+          });
+          const userErrors = result?.data?.collectionCreate?.userErrors || [];
+          if (userErrors.length) {
+            // Attempt recovery when handle already exists: fetch by title, append store to metafield, update collection
+            try {
+              const errorMessages = userErrors
+                .map((e) => e?.message || "")
+                .join(" | ");
+              const isHandleTaken =
+                /handle/i.test(errorMessages) &&
+                /taken|already/i.test(errorMessages);
+
+              const getCollectionsByTitleQuery = `
+                query($handle: String!) { collections(first: 10, query: $handle) { edges { node { id title handle updatedAt metafields(first: 10) { edges { node { id namespace key type value } } } } } } }
+              `;
+              const handleQuery = `handle:'${record.handle ? record.handle.replace(
+                /'/g,
+                "\\'"
+              ) : ''}'`;
+              const existing = await shopifyGraphQL(
+                getCollectionsByTitleQuery,
+                {
+                  handle: handleQuery,
+                }
+              );
+              const existingEdges = existing?.data?.collections?.edges || [];
+              const existingNode = existingEdges?.[0]?.node;
+
+              if (existingNode?.id) {
+                // Read current metafield value
+                const existingMetaEdges = existingNode?.metafields?.edges || [];
+                const themeTypesNode = existingMetaEdges
+                  .map((e) => e?.node)
+                  .find(
+                    (n) => n?.namespace === "custom" && n?.key === "theme_types"
+                  );
+                const currentValue = (themeTypesNode?.value || "").trim();
+                const currentParts = currentValue
+                  ? currentValue
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                  : [];
+                const currentStore = envMap["VITE_STORE_NAME"] || storeName;
+                if (!currentParts.includes(currentStore))
+                  currentParts.push(currentStore);
+                const mergedValue = currentParts.join(", ");
+
+                const updateCollectionMetafieldsMutation = `
+                  mutation updateCollectionMetafields($input: CollectionInput!) {
+                    collectionUpdate(input: $input) {
+                      collection {
+                        id
+                        metafields(first: 3) { edges { node { id namespace key value } } }
+                      }
+                      userErrors { message field }
+                    }
+                  }
+                `;
+
+                const updateResult = await shopifyGraphQL(
+                  updateCollectionMetafieldsMutation,
+                  {
+                    input: {
+                      id: existingNode.id,
+                      metafields: [
+                        {
+                          namespace: "custom",
+                          key: "theme_types",
+                          type: "single_line_text_field",
+                          value: mergedValue,
+                        },
+                      ],
+                    },
+                  }
+                );
+
+                const updErrors =
+                  updateResult?.data?.collectionUpdate?.userErrors || [];
+                if (updErrors.length) {
+                  socket.emit("publish:collections:error", {
+                    index: i,
+                    title: record.title,
+                    handle: record.handle,
+                    message: `update_failed: ${JSON.stringify(updErrors)}`,
+                  });
+                  continue;
+                }
+                socket.emit("publish:collections:progress", {
+                  index: i,
+                  title: record.title,
+                  id: existingNode.id,
+                  handle: record.handle,
+                });
+
+                // Consider this collection processed successfully after update
+                createdCount++;
+                socket.emit("publish:collections:published", {
+                  index: i,
+                  title: record.title,
+                  id: existingNode.id,
+                  handle: record?.handle,
+                });
+                continue;
+              }
+
+              // If we couldn't find existing collection, report original error
+              socket.emit("publish:collections:error", {
+                index: i,
+                title: record.title,
+                handle: record.handle,
+                message: "collection_not_found_by_title",
+              });
+              socket.emit("publish:collections:error", {
+                index: i,
+                title: record.title,
+                handle: record.handle,
+                message: JSON.stringify(userErrors),
+              });
+              continue;
+            } catch (recoveryError) {
+              socket.emit("publish:collections:error", {
+                index: i,
+                title: record.title,
+                handle: record.handle,
+                message: recoveryError?.message || String(recoveryError),
+              });
+              socket.emit("publish:collections:error", {
+                index: i,
+                title: record.title,
+                handle: record.handle,
+                message: `recovery_failed: ${
+                  recoveryError?.message || String(recoveryError)
+                }`,
+              });
+              continue;
+            }
+          }
+          const collection = result?.data?.collectionCreate?.collection;
+
+          // Optionally publish to sales channels (publications)
+          if (collection?.id && publicationIdsToUse.length > 0) {
+            const failedPublications = [];
+            for (const publicationId of publicationIdsToUse) {
+              try {
+                socket.emit("publish:collections:publishing", {
+                  index: i,
+                  title: record.title,
+                  collectionId: collection.id,
+                  publicationId,
+                });
+                const pubResult = await shopifyGraphQL(
+                  publishCollectionMutation,
+                  {
+                    collectionId: collection.id,
+                    publicationId: publicationId,
+                  }
+                );
+                const pubErrors =
+                  pubResult?.data?.publishablePublish?.userErrors || [];
+                if (pubErrors.length) {
+                  const msg = pubErrors
+                    .map((e) => `${e.field || "unknown"}: ${e.message}`)
+                    .join(", ");
+                  failedPublications.push({ id: publicationId, error: msg });
+                  socket.emit("publish:collections:publish_error", {
+                    index: i,
+                    title: record.title,
+                    collectionId: collection.id,
+                    handle: record?.handle,
+                    publicationId,
+                    message: msg,
+                  });
+                } else {
+                  socket.emit("publish:collections:published", {
+                    index: i,
+                    title: record.title,
+                    handle: record?.handle,
+                    collectionId: collection.id,
+                    publicationId,
+                  });
+                }
+              } catch (e) {
+                const msg = e?.message || String(e);
+                failedPublications.push({ id: publicationId, error: msg });
+                socket.emit("publish:collections:publish_error", {
+                  index: i,
+                  title: record.title,
+                  collectionId: collection.id,
+                  publicationId,
+                  message: msg,
+                });
+              }
+            }
+            socket.emit("publish:collections:publish_summary", {
+              index: i,
+              title: record.title,
+              collectionId: collection.id,
+              failed: failedPublications,
+            });
+          }
+
+          createdCount++;
+          socket.emit("publish:collections:success", {
+            index: i,
+            title: record.title,
+            id: collection?.id,
+            handle: collection?.handle,
+          });
+        } catch (e) {
+          socket.emit("publish:collections:error", {
+            index: i,
+            title: record.title,
+            handle: record?.handle,
+            message: e?.message || String(e),
+          });
+        }
+      }
+
+      socket.emit("publish:collections:done", {
+        created: createdCount,
+        total: rows.length,
+      });
+      // Kick off products step automatically
+      socket.emit("publish:collections:completed", {
+        storeName,
+        success: true,
+      });
+    } catch (error) {
+      console.log("error:",error.message)
+      socket.emit("publish:error", {
+        stage: "unexpected",
+        message: error?.message || String(error),
+      });
+    }
   });
 };

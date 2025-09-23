@@ -118,7 +118,7 @@ async function getStoreEnvByName(req, res) {
         .trim()
         .replace(/^export\s+/, "");
       let value = line.slice(eqIndex + 1).trim();
-      value = value.replace(/^"|"$/g, "");
+      value = value ? value.replace(/^"|"$/g, "") : "";
       if (key) env[key] = value;
     });
 
@@ -175,6 +175,7 @@ async function getStoreEnvByName(req, res) {
       returnShippingPolicy: env.VITE_RETURN_SHIPPING_POLICY || "",
       saleItemsPolicy: env.VITE_SALE_ITEMS_POLICY || "",
       termsOfServiceUpdateAt: env.VITE_TC_LAST_UPDATED_DATE || "",
+      companyCity: env.VITE_COMPANY_CITY || "",
     };
 
     return res.status(200).json({ success: true, data: payload });
@@ -246,11 +247,11 @@ async function updateGoogleScripts(req, res) {
 
         const upsertEnvVar = (src, key, value) => {
           if (value === undefined || value === null || value === "") return src;
-          const escapedKey = key.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+          const escapedKey = key ? key.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&") : "";
           const regex = new RegExp(`(^|\n)\s*${escapedKey}\s*=.*(?=\n|$)`);
           const line = `${key}="${String(value).trim()}"`;
           if (regex.test(src)) {
-            return src.replace(regex, (m, p1) => `${p1}${line}`);
+            return src ? src.replace(regex, (m, p1) => `${p1}${line}`) : src;
           }
           if (!src.endsWith("\n") && src.length > 0) src += "\n";
           return src + line + "\n";
@@ -420,7 +421,7 @@ function hydrogenLinkAndDeploy(themeDir, storefrontName) {
           if (storefrontBuffer.includes("Press ↑") && !selectingStorefront) {
             selectingStorefront = true;
 
-            const noAnsi = storefrontBuffer.replace(/\x1b\[[0-9;]*m/g, "");
+            const noAnsi = storefrontBuffer ? storefrontBuffer.replace(/\x1b\[[0-9;]*m/g, "") : "";
             const lines = noAnsi
               .split("\n")
               .map((l) => l.trim())
@@ -435,10 +436,11 @@ function hydrogenLinkAndDeploy(themeDir, storefrontName) {
 
             // normalize
             const normalizedOptions = storefrontOptions.map((l) =>
-              l
-                .replace(/^❯?\s*/, "")
-                .replace(/\s+\[default\]$/, "")
-                .trim()
+              l ? l
+                  .replace(/^❯?\s*/, "")
+                  .replace(/\s+\[default\]$/, "")
+                  .trim()
+                : ""
             );
 
             const targetStorefront = storefrontName.trim().toLowerCase();
@@ -536,7 +538,7 @@ function hydrogenLinkAndDeploy(themeDir, storefrontName) {
         }
 
         if (data.includes("Could not create storefront")) {
-          const noAnsi = data.replace(/\x1b\[[0-9;]*m/g, "");
+          const noAnsi = data ? data.replace(/\x1b\[[0-9;]*m/g, "") : "";
           const messageLines = noAnsi
             .split("\n")
             .map((line) => line.trim())
@@ -547,7 +549,7 @@ function hydrogenLinkAndDeploy(themeDir, storefrontName) {
                 !/^╭.*╮$/.test(line) &&
                 !/^╰.*╯$/.test(line)
             )
-            .map((line) => line.replace(/^│/, "").replace(/│$/, "").trim());
+            .map((line) => line ? line.replace(/^│/, "").replace(/│$/, "").trim() : "");
           const finalMessage = messageLines.join(" ");
         }
       });
