@@ -177,7 +177,8 @@ module.exports = (io, socket) => {
       `./${message.category}_${message.language}`
     );
     const hyphenatedStoreName = message.name
-      ? message.name.trim()
+      ? message.name
+          .trim()
           .replace(/\s+/g, "-")
           .replace(/[^a-zA-Z0-9\-]/g, "-")
           .replace(/-+/g, "-")
@@ -254,11 +255,12 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
       const customOfferIds = message.customOfferIds || {};
       if (customOfferIds && typeof customOfferIds === "object") {
         const normalizeKey = (k) =>
-          k ? String(k)
-              .trim()
-              .replace(/\s+/g, "")
-              .replace(/\./g, "_")
-              .replace(/[^0-9_]/g, "")
+          k
+            ? String(k)
+                .trim()
+                .replace(/\s+/g, "")
+                .replace(/\./g, "_")
+                .replace(/[^0-9_]/g, "")
             : "";
         const lines = Object.entries(customOfferIds)
           .filter(([k, v]) => k !== undefined && v !== undefined && v !== null)
@@ -492,7 +494,9 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
                 relinkMenuHandled = true;
 
                 // Parse options
-                const noAnsi = relinkBuffer ? relinkBuffer.replace(/\x1b\[[0-9;]*m/g, "") : "";
+                const noAnsi = relinkBuffer
+                  ? relinkBuffer.replace(/\x1b\[[0-9;]*m/g, "")
+                  : "";
                 const lines = noAnsi
                   .split("\n")
                   .map((l) => l.trim())
@@ -505,10 +509,11 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
                 );
 
                 const normalizedOptions = storefrontOptions.map((l) =>
-                  l ? l
-                      .replace(/^❯?\s*/, "")
-                      .replace(/\s+\[default\]$/, "")
-                      .trim()
+                  l
+                    ? l
+                        .replace(/^❯?\s*/, "")
+                        .replace(/\s+\[default\]$/, "")
+                        .trim()
                     : ""
                 );
 
@@ -541,15 +546,16 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
                 let selectedUrl = urlMatch ? urlMatch[0] : null;
 
                 if (selectedUrl) {
-                  selectedUrl = selectedUrl ? selectedUrl.replace(
-                    /^[()\[\]<>{},]+|[()\[\]<>{},]+$/g,
-                    ""
-                  ) : "";
+                  selectedUrl = selectedUrl
+                    ? selectedUrl.replace(
+                        /^[()\[\]<>{},]+|[()\[\]<>{},]+$/g,
+                        ""
+                      )
+                    : "";
                   if (storeDetails) {
-                    const withoutProtocol = message?.shopifyUrl ? message.shopifyUrl.replace(
-                      /^https?:\/\//,
-                      ""
-                    ) : "";
+                    const withoutProtocol = message?.shopifyUrl
+                      ? message.shopifyUrl.replace(/^https?:\/\//, "")
+                      : "";
                     const storeName =
                       withoutProtocol.split(".myshopify.com")[0];
 
@@ -831,7 +837,9 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
                 .split("\n")
                 .map((line) => line.trim())
                 .filter((line) => line && !/^[-─╭╰╮╯│]+$/.test(line))
-                .map((line) => line ? line.replace(/^│/, "").replace(/│$/, "").trim() : "");
+                .map((line) =>
+                  line ? line.replace(/^│/, "").replace(/│$/, "").trim() : ""
+                );
               const finalMessage = messageLines.join(" ");
               socket.emit("shopify:failure", finalMessage);
             }
@@ -1332,7 +1340,8 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
     }
     // Build env updates
     const hyphenatedStoreName = message.name
-      ? message.name.trim()
+      ? message.name
+          .trim()
           .replace(/\s+/g, "-")
           .replace(/[^a-zA-Z0-9\-]/g, "-")
           .replace(/-+/g, "-")
@@ -1534,7 +1543,9 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
             if (storefrontBuffer.includes("Press ↑") && !selectingStorefront) {
               selectingStorefront = true;
 
-              const noAnsi = storefrontBuffer ? storefrontBuffer.replace(/\x1b\[[0-9;]*m/g, "") : "";
+              const noAnsi = storefrontBuffer
+                ? storefrontBuffer.replace(/\x1b\[[0-9;]*m/g, "")
+                : "";
               const lines = noAnsi
                 .split("\n")
                 .map((l) => l.trim())
@@ -1549,10 +1560,11 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
 
               // normalize
               const normalizedOptions = storefrontOptions.map((l) =>
-                l ? l
-                    .replace(/^❯?\s*/, "")
-                    .replace(/\s+\[default\]$/, "")
-                    .trim()
+                l
+                  ? l
+                      .replace(/^❯?\s*/, "")
+                      .replace(/\s+\[default\]$/, "")
+                      .trim()
                   : ""
               );
 
@@ -1571,10 +1583,9 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
               let selectedUrl = urlMatch ? urlMatch[0] : null;
 
               if (selectedUrl) {
-                selectedUrl = selectedUrl ? selectedUrl.replace(
-                  /^[()\[\]<>{},]+|[()\[\]<>{},]+$/g,
-                  ""
-                ) : "";
+                selectedUrl = selectedUrl
+                  ? selectedUrl.replace(/^[()\[\]<>{},]+|[()\[\]<>{},]+$/g, "")
+                  : "";
                 try {
                   await prisma.stores.update({
                     where: { store_id: storeDetails.store_id },
@@ -1701,7 +1712,9 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
                   !/^╭.*╮$/.test(line) &&
                   !/^╰.*╯$/.test(line)
               )
-              .map((line) => line ? line.replace(/^│/, "").replace(/│$/, "").trim() : "");
+              .map((line) =>
+                line ? line.replace(/^│/, "").replace(/│$/, "").trim() : ""
+              );
             const finalMessage = messageLines.join(" ");
             socket.emit("shopify:failure", finalMessage);
           }
@@ -2024,7 +2037,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
           pin: true,
           access: {
             storefront: "PUBLIC_READ",
-          },  
+          },
         },
       };
       if (nodes.length === 0) {
@@ -2160,7 +2173,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
       let publicationEdges = [];
       try {
         const pubs = await shopifyGraphQL(publicationsQuery, {});
-        publicationEdges = pubs?.data?.publications?.edges || []; 
+        publicationEdges = pubs?.data?.publications?.edges || [];
       } catch (e) {
         socket.emit("publish:error", {
           stage: "publications",
@@ -2200,7 +2213,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
 
       // 9) Group rows by handle first, then create collections
       const collections = {};
-      
+
       // First pass: Group all rows by handle
       for (const [, row] of rows.entries()) {
         const record = {};
@@ -2267,8 +2280,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
         const collectionInput = {
           title: title,
           handle: handle,
-          descriptionHtml:
-            description || "Collection created from CSV import",
+          descriptionHtml: description || "Collection created from CSV import",
           sortOrder: "BEST_SELLING",
           ruleSet: { appliedDisjunctively, rules },
           image_src: image_src,
@@ -2333,10 +2345,9 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
               const getCollectionsByTitleQuery = `
                 query($handle: String!) { collections(first: 10, query: $handle) { edges { node { id title handle updatedAt metafields(first: 10) { edges { node { id namespace key type value } } } } } } }
               `;
-              const handleQuery = `handle:'${handle ? handle.replace(
-                /'/g,
-                "\\'"
-              ) : ''}'`;
+              const handleQuery = `handle:'${
+                handle ? handle.replace(/'/g, "\\'") : ""
+              }'`;
               const existing = await shopifyGraphQL(
                 getCollectionsByTitleQuery,
                 {
@@ -2528,7 +2539,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
             handle: handle,
           });
         } catch (e) {
-          console.log(e.message)
+          console.log(e.message);
           socket.emit("publish:collections:error", {
             index: i,
             title: title,
@@ -2548,301 +2559,508 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
         success: true,
       });
     } catch (error) {
-      console.log("error:",error.message)
+      console.log("error:", error.message);
       socket.emit("publish:error", {
         stage: "unexpected",
         message: error?.message || String(error),
       });
     }
   });
-  socket.on("publish:products", async (payload) => {
-    uploadProducts(payload);
+  socket.on("publish:products", async (payload, publications) => {
+    uploadProducts(payload, publications);
   });
-async function uploadProducts(message) {
-  const payload = JSON.parse(message);
+  async function uploadProducts(message, publications) {
+    const payload = JSON.parse(message);
 
-  try {
-    if (!payload?.storeName) {
-      console.error("[UploadProducts] Missing storeName in payload");
-      socket.emit("publish:error", {
-        message: "Missing storeName in payload",
-      });
-      return;
-    }
-
-    const storeName = payload.storeName.trim();
-    console.log(`[UploadProducts] Starting for store: ${storeName}`);
-
-    // Load .env
-    const envPath = path.join("./" + storeName, ".env");
-    if (!fs.existsSync(envPath)) {
-      console.error(`[UploadProducts] .env file not found: ${envPath}`);
-      socket.emit("publish:error", { message: ".env file not found", envPath });
-      return;
-    }
-
-    console.log(`[UploadProducts] Loading env from: ${envPath}`);
-
-    const envMap = {};
-    fs.readFileSync(envPath, "utf8")
-      .split(/\r?\n/)
-      .forEach((line) => {
-        if (!line || line.startsWith("#")) return;
-        const [key, ...rest] = line.split("=");
-        if (!key) return;
-        envMap[key.trim()] = rest.join("=").trim().replace(/^"|"$/g, "");
-      });
-
-    function buildAdminUrlFromEnv(map) {
-      const direct =
-        map["SHOPIFY_ADMIN_API_URL"] || map["VITE_SHOPIFY_ADMIN_API_URL"];
-      if (direct && direct.trim()) return direct.trim();
-      const domain =
-        map["VITE_SHOPIFY_URL"] ||
-        map["SHOPIFY_STORE_DOMAIN"] ||
-        map["SHOPIFY_STORE_URL"] ||
-        "";
-      if (!domain) return null;
-      const clean = domain ? domain.replace(/^https?:\/\//, "") : "";
-      return `https://${clean}/admin/api/2025-07/graphql.json`;
-    }
-
-    const ADMIN_URL = buildAdminUrlFromEnv(envMap);
-    const ADMIN_TOKEN =
-      envMap["SHOPIFY_ADMIN_ACCESS_TOKEN"] ||
-      envMap["VITE_SHOPIFY_ADMIN_ACCESS_TOKEN"];
-
-    if (!ADMIN_URL || !ADMIN_TOKEN) {
-      console.error("[UploadProducts] Missing Shopify credentials");
-      socket.emit("publish:error", { message: "Missing Shopify credentials" });
-      return;
-    }
-
-    console.log(`[UploadProducts] Using Shopify API: ${ADMIN_URL}`);
-
-    // Parse CSV
-    const themeFolderPath = path.resolve(
-      `./${envMap["VITE_CATEGORY"]}_${envMap["VITE_LANGUAGE"]}`
-    );
-    const csvFiles = fs
-      .readdirSync(themeFolderPath)
-      .filter((f) => f.toLowerCase().endsWith(".csv"));
-    const productCsv = csvFiles.find((f) =>
-      f.toLowerCase().includes("product")
-    );
-    if (!productCsv) {
-      console.error(`[UploadProducts] Products CSV not found in: ${themeFolderPath}`);
-      socket.emit("publish:error", {
-        message: "Products CSV not found",
-        themeFolderPath,
-      });
-      return;
-    }
-
-    console.log(`[UploadProducts] Found product CSV: ${productCsv}`);
-
-    const fileContent = fs.readFileSync(
-      path.join(themeFolderPath, productCsv),
-      "utf8"
-    );
-    const records = parse(fileContent, { skip_empty_lines: true });
-    const header = records[0];
-    const rows = records.slice(1);
-
-    console.log(`[UploadProducts] CSV contains ${rows.length} product rows`);
-
-    // Group products by handle
-    const groupedProducts = new Map();
-
-    rows.forEach((row) => {
-      const data = {};
-      header.forEach((h, i) => {
-        if (row[i] && row[i].trim()) data[h] = row[i].trim();
-      });
-
-      const handle = data["Handle"];
-      if (!handle) return;
-
-      if (!groupedProducts.has(handle)) {
-        groupedProducts.set(handle, {
-          baseRow: { ...data },
-          variants: [],
-          media: [],
+    try {
+      if (!payload?.storeName) {
+        console.error("[UploadProducts] Missing storeName in payload");
+        socket.emit("publish:error", {
+          message: "Missing storeName in payload",
         });
+        return;
       }
 
-      const group = groupedProducts.get(handle);
+      const storeName = payload.storeName.trim();
+      console.log(`[UploadProducts] Starting for store: ${storeName}`);
 
-      // Merge media
-      if (data["Image Src"]) {
-        group.media.push({
-          originalSource: data["Image Src"],
-          alt: data["Image Alt Text"] || `Media for ${handle}`,
-          contentType: "IMAGE",
+      // Load .env
+      const envPath = path.join("./" + storeName, ".env");
+      if (!fs.existsSync(envPath)) {
+        console.error(`[UploadProducts] .env file not found: ${envPath}`);
+        socket.emit("publish:error", {
+          message: ".env file not found",
+          envPath,
         });
+        return;
       }
 
-      // Build optionValues dynamically
-      const optionValues = [];
-      ["1", "2", "3"].forEach((n) => {
-        const optName =
-          data[`Option${n} Name`] || group.baseRow[`Option${n} Name`];
-        const optValue = data[`Option${n} Value`];
-        if (optName && optValue)
-          optionValues.push({ optionName: optName, name: optValue });
-      });
-
-      if (optionValues.length || data["Variant SKU"]) {
-        group.variants.push({
-          price: data["Variant Price"]?.toString() || "10.00",
-          inventoryPolicy: (
-            data["Variant Inventory Policy"] || "CONTINUE"
-          ).toUpperCase(),
-          taxable: data["Variant Taxable"]?.toUpperCase() === "TRUE",
-          optionValues,
-          inventoryQuantities: data["Variant Inventory Qty"]
-            ? [
-                {
-                  locationId: null,
-                  quantity: Number(data["Variant Inventory Qty"]),
-                  name: "available",
-                },
-              ]
-            : [],
-          sku: data["Variant SKU"]?.toString(),
+      const envMap = {};
+      fs.readFileSync(envPath, "utf8")
+        .split(/\r?\n/)
+        .forEach((line) => {
+          if (!line || line.startsWith("#")) return;
+          const [key, ...rest] = line.split("=");
+          if (!key) return;
+          envMap[key.trim()] = rest.join("=").trim().replace(/^"|"$/g, "");
         });
+
+      function buildAdminUrlFromEnv(map) {
+        const direct =
+          map["SHOPIFY_ADMIN_API_URL"] || map["VITE_SHOPIFY_ADMIN_API_URL"];
+        if (direct && direct.trim()) return direct.trim();
+        const domain =
+          map["VITE_SHOPIFY_URL"] ||
+          map["SHOPIFY_STORE_DOMAIN"] ||
+          map["SHOPIFY_STORE_URL"] ||
+          "";
+        if (!domain) return null;
+        const clean = domain.replace(/^https?:\/\//, "");
+        return `https://${clean}/admin/api/2025-07/graphql.json`;
       }
-    });
 
-    console.log(`[UploadProducts] Grouped into ${groupedProducts.size} products`);
+      const ADMIN_URL = buildAdminUrlFromEnv(envMap);
+      const ADMIN_TOKEN =
+        envMap["SHOPIFY_ADMIN_ACCESS_TOKEN"] ||
+        envMap["VITE_SHOPIFY_ADMIN_ACCESS_TOKEN"];
 
-    // Shopify GraphQL helper
-    async function shopifyGraphQL(query, variables) {
-      console.log(`[UploadProducts] → Sending GraphQL request`);
-      const rsp = await fetch(ADMIN_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Access-Token": ADMIN_TOKEN,
-        },
-        body: JSON.stringify({ query, variables }),
-      });
-      if (!rsp.ok) throw new Error(`GraphQL HTTP error ${rsp.status}`);
-      return rsp.json();
-    }
-
-    // Fetch location once
-    const locationResp = await shopifyGraphQL(
-      `query { locations(first: 5) { edges { node { id } } } }`
-    );
-    const locationId =
-      locationResp?.data?.locations?.edges?.[0]?.node?.id || null;
-    console.log(`[UploadProducts] Using locationId: ${locationId}`);
-    const createdCount = 0;
-    // Loop over products
-    for (const [handle, group] of groupedProducts) {
-      try {
-        console.log(`[UploadProducts] Creating product: ${handle}`);
-
-        const product = group.baseRow;
-        const optionNames = ["1", "2", "3"]
-          .map((n) => group.baseRow[`Option${n} Name`])
-          .filter(Boolean);
-
-        const derivedProductOptions = optionNames.map((optName) => {
-          const values = Array.from(
-            new Set(
-              group.variants
-                .flatMap((v) =>
-                  v.optionValues
-                    .filter((ov) => ov.optionName === optName)
-                    .map((ov) => ov.name)
-                )
-                .filter(Boolean)
-            )
-          );
-          return { name: optName, values: values.map((v) => ({ name: v })) };
+      if (!ADMIN_URL || !ADMIN_TOKEN) {
+        console.error("[UploadProducts] Missing Shopify credentials");
+        socket.emit("publish:error", {
+          message: "Missing Shopify credentials",
         });
+        return;
+      }
 
-        const inputPayload = {
-          synchronous: true,
-          productSet: {
-            title: product.Title || handle,
-            descriptionHtml: product["Body (HTML)"] || "",
-            vendor: product.Vendor || "Default Vendor",
-            productType: product["Type"] || "General",
-            status: (product["Status"] || "ACTIVE").toUpperCase(),
-            seo: {
-              title: product["SEO Title"] || product.Title,
-              description: product["SEO Description"] || "",
-            },
-            tags: product["Tags"] || "",
-            productOptions: derivedProductOptions,
-            metafields: [
-              {
-                namespace: "custom",
-                key: "theme_types",
-                value: envMap["VITE_STORE_NAME"] || storeName,
-                type: "single_line_text_field",
-              },
-            ],
-            variants: group.variants.map((v) => {
-              v.inventoryQuantities.forEach(
-                (iq) => (iq.locationId = locationId)
-              );
-              return v;
-            }),
-            files: group.media,
+      console.log(`[UploadProducts] Using Shopify API: ${ADMIN_URL}`);
+
+      // GraphQL helper
+      async function shopifyGraphQL(query, variables) {
+        const rsp = await fetch(ADMIN_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Shopify-Access-Token": ADMIN_TOKEN,
           },
-        };
+          body: JSON.stringify({ query, variables }),
+        });
+        if (!rsp.ok) throw new Error(`GraphQL HTTP error ${rsp.status}`);
+        return rsp.json();
+      }
 
-        const createResp = await shopifyGraphQL(
-          `
-          mutation createProductAsynchronous($productSet: ProductSetInput!, $synchronous: Boolean!) {
-            productSet(synchronous: $synchronous, input: $productSet) {
-              product { id title }
-              userErrors { field message }
-            }
-          }`,
-          inputPayload
+      async function ensureThemeTypesDefinition(ownerType = "PRODUCT") {
+        const queryForMetafields = `
+        query MetafieldDefinitions($ownerType: MetafieldOwnerType!, $first: Int) {
+          metafieldDefinitions(ownerType: $ownerType, first: $first) {
+            nodes { name namespace key type { name } }
+          }
+        }`;
+
+        const resp = await shopifyGraphQL(queryForMetafields, {
+          ownerType,
+          first: 20,
+        });
+
+        const nodes = resp?.data?.metafieldDefinitions?.nodes || [];
+        const hasThemeTypes = nodes.some(
+          (node) => node.namespace === "custom" && node.key === "theme_types"
         );
 
-        const createdProduct = createResp?.data?.productSet?.product;
-        if (!createdProduct?.id) {
-          console.error(
-            `[UploadProducts] Failed for ${handle}:`,
-            createResp?.data?.productSet?.userErrors
+        if (hasThemeTypes) {
+          console.log(
+            `[UploadProducts] ✅ Metafield definition already exists for ${ownerType}`
           );
-          socket.emit("publish:error", {
-            handle,
-            message: JSON.stringify(createResp?.data?.productSet?.userErrors),
-          });
-          continue;
+          return;
         }
 
         console.log(
-          `[UploadProducts] ✅ Created product: ${createdProduct.title} (${createdProduct.id})`
+          `[UploadProducts] ⚠️ Creating metafield definition for ${ownerType}`
         );
 
-        createdCount++;
-        socket.emit("publish:success", {
-          handle,
-          id: createdProduct.id,
-          count: createdCount,
-          title: createdProduct.title,
-        });
-      } catch (err) {
-        console.error(`[UploadProducts] ❌ Error for ${handle}:`, err);
-        socket.emit("publish:error", {
-          handle: group.baseRow.Handle,
-          message: err?.message || String(err),
-        });
-      }
-    }
-  } catch (err) {
-    console.error("[UploadProducts] Fatal error:", err);
-    socket.emit("publish:error", { message: err?.message || String(err) });
-  }
-}
+        const createMetaFieldMutation = `
+        mutation CreateMetafieldDefinition($definition: MetafieldDefinitionInput!) {
+          metafieldDefinitionCreate(definition: $definition) {
+            createdDefinition { id name }
+            userErrors { field message code }
+          }
+        }`;
 
+        const createResp = await shopifyGraphQL(createMetaFieldMutation, {
+          definition: {
+            name: "Theme Types",
+            namespace: "custom",
+            key: "theme_types",
+            description: "A theme type reference for store products",
+            type: "single_line_text_field",
+            ownerType,
+            pin: true,
+            access: { storefront: "PUBLIC_READ" },
+          },
+        });
+
+        if (createResp?.data?.metafieldDefinitionCreate?.userErrors?.length) {
+          console.error(
+            "[UploadProducts] ❌ Error creating metafield definition:",
+            createResp.data.metafieldDefinitionCreate.userErrors
+          );
+        } else {
+          console.log("[UploadProducts] ✅ Created metafield definition");
+        }
+      }
+
+      // Ensure product metafield definition exists
+      await ensureThemeTypesDefinition("PRODUCT");
+
+      // Parse CSV
+      const themeFolderPath = path.resolve(
+        `./${envMap["VITE_CATEGORY"]}_${envMap["VITE_LANGUAGE"]}`
+      );
+      const csvFiles = fs
+        .readdirSync(themeFolderPath)
+        .filter((f) => f.toLowerCase().endsWith(".csv"));
+      const productCsv = csvFiles.find((f) =>
+        f.toLowerCase().includes("product")
+      );
+      if (!productCsv) {
+        console.error(
+          `[UploadProducts] Products CSV not found in: ${themeFolderPath}`
+        );
+        socket.emit("publish:error", {
+          message: "Products CSV not found",
+          themeFolderPath,
+        });
+        return;
+      }
+
+      const fileContent = fs.readFileSync(
+        path.join(themeFolderPath, productCsv),
+        "utf8"
+      );
+      const records = parse(fileContent, { skip_empty_lines: true });
+      const header = records[0];
+      const rows = records.slice(1);
+
+      console.log(`[UploadProducts] CSV contains ${rows.length} product rows`);
+
+      // Fetch location once
+      const locationResp = await shopifyGraphQL(
+        `query { locations(first: 5) { edges { node { id } } } }`
+      );
+      const locationId =
+        locationResp?.data?.locations?.edges?.[0]?.node?.id || null;
+      console.log(`[UploadProducts] Using locationId: ${locationId}`);
+
+      // Group products by handle
+      const groupedProducts = new Map();
+      rows.forEach((row) => {
+        const data = {};
+        header.forEach((h, i) => {
+          if (row[i] && row[i].trim()) data[h] = row[i].trim();
+        });
+        const handle = data["Handle"];
+        if (!handle) return;
+        if (!groupedProducts.has(handle)) {
+          groupedProducts.set(handle, {
+            baseRow: { ...data },
+            variants: [],
+            media: [],
+          });
+        }
+        const group = groupedProducts.get(handle);
+
+        if (data["Image Src"]) {
+          group.media.push({
+            originalSource: data["Image Src"],
+            alt: data["Image Alt Text"] || `Media for ${handle}`,
+            contentType: "IMAGE",
+          });
+        }
+
+        const optionValues = [];
+        ["1", "2", "3"].forEach((n) => {
+          const optName =
+            data[`Option${n} Name`] || group.baseRow[`Option${n} Name`];
+          const optValue = data[`Option${n} Value`];
+          if (optName && optValue)
+            optionValues.push({ optionName: optName, name: optValue });
+        });
+
+        if (optionValues.length || data["Variant SKU"]) {
+          group.variants.push({
+            price: data["Variant Price"]?.toString() || "10.00",
+            inventoryPolicy: (
+              data["Variant Inventory Policy"] || "CONTINUE"
+            ).toUpperCase(),
+            taxable: data["Variant Taxable"]?.toUpperCase() === "TRUE",
+            optionValues,
+            inventoryQuantities: data["Variant Inventory Qty"]
+              ? [
+                  {
+                    locationId: locationId, // to be filled later
+                    quantity: Number(data["Variant Inventory Qty"]),
+                    name: "available",
+                  },
+                ]
+              : [],
+            sku: data["Variant SKU"]?.toString(),
+          });
+        }
+      });
+
+      console.log(
+        `[UploadProducts] Grouped into ${groupedProducts.size} products`
+      );
+
+      let createdCount = 0;
+
+      // Loop over products
+      for (const [handle, group] of groupedProducts) {
+        try {
+          console.log(`[UploadProducts] Creating product: ${handle}`);
+
+          const product = group.baseRow;
+          const optionNames = ["1", "2", "3"]
+            .map((n) => group.baseRow[`Option${n} Name`])
+            .filter(Boolean);
+
+          const derivedProductOptions = optionNames.map((optName) => {
+            const values = Array.from(
+              new Set(
+                group.variants
+                  .flatMap((v) =>
+                    v.optionValues
+                      .filter((ov) => ov.optionName === optName)
+                      .map((ov) => ov.name)
+                  )
+                  .filter(Boolean)
+              )
+            );
+            return { name: optName, values: values.map((v) => ({ name: v })) };
+          });
+
+          const inputPayload = {
+            synchronous: true,
+            productSet: {
+              title: product.Title || handle,
+              descriptionHtml: product["Body (HTML)"] || "",
+              vendor: product.Vendor || "Default Vendor",
+              productType: product["Type"] || "General",
+              status: (product["Status"] || "ACTIVE").toUpperCase(),
+              seo: {
+                title: product["SEO Title"] || product.Title,
+                description: product["SEO Description"] || "",
+              },
+              tags: product["Tags"] || "",
+              productOptions: derivedProductOptions,
+              // metafields: [
+              //   {
+              //     namespace: "custom",
+              //     key: "theme_types",
+              //     value: payload?.publications
+              //       ?.map((publication) =>
+              //         publication.publicationName.split(" ").join("-")
+              //       )
+              //       .join(","),
+              //     type: "single_line_text_field",
+              //   },
+              // ],
+              variants: group.variants.map((v) => {
+                v.inventoryQuantities.forEach(
+                  (iq) => (iq.locationId = locationId)
+                );
+                return v;
+              }),
+              files: group.media,
+            },
+          };
+
+          const createResp = await shopifyGraphQL(
+            `
+          mutation createProductAsynchronous($productSet: ProductSetInput!, $synchronous: Boolean!) {
+            productSet(synchronous: $synchronous, input: $productSet) {
+                      product {
+            id
+            title
+             media(first: 5) {
+            nodes {
+              id
+              alt
+              mediaContentType
+              status
+            }
+          }
+            variants(first: 10) {
+              edges {
+                node {
+                  id
+                  title
+                  inventoryItem {
+                    id  # 👈 This is needed to adjust inventory later
+                  }
+                }
+              }
+            }
+          }
+          productSetOperation {
+            id
+            status
+            userErrors {
+              code
+              field
+              message
+            }
+          }
+          userErrors {
+            code
+            field
+            message
+          }
+        }
+          }`,
+            inputPayload
+          );
+
+          const createdProduct = createResp?.data?.productSet?.product;
+          const inventoryItemId =
+            createResp?.data?.productSet?.product?.variants?.edges[0]?.node
+              ?.inventoryItem?.id;
+          if (!createdProduct?.id) {
+            console.error(
+              `[UploadProducts] Failed for ${handle}:`,
+              createResp?.data?.productSet?.userErrors
+            );
+            socket.emit("publish:error", {
+              handle,
+              message: JSON.stringify(createResp?.data?.productSet?.userErrors),
+            });
+            continue;
+          }
+
+          const updateItemMutation = `mutation inventoryItemUpdate($id: ID!, $input: InventoryItemInput!) {
+      inventoryItemUpdate(id: $id, input: $input) {
+        inventoryItem {
+          id
+          unitCost {
+            amount
+          }
+          tracked
+          countryCodeOfOrigin
+          provinceCodeOfOrigin
+          harmonizedSystemCode
+          countryHarmonizedSystemCodes(first: 1) {
+            edges {
+              node {
+                harmonizedSystemCode
+                countryCode
+              }
+            }
+          }
+        }
+        userErrors {
+          message
+        }
+      }
+    }`;
+
+          const inventoryUpdateResponse = await fetch(ADMIN_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Shopify-Access-Token": ADMIN_TOKEN,
+            },
+            body: JSON.stringify({
+              query: updateItemMutation,
+              variables: {
+                id: inventoryItemId,
+                input: {
+                  tracked: true,
+                },
+              },
+            }),
+          });
+
+          const inventoryUpdated = await inventoryUpdateResponse.json();
+
+          console.log(
+            `[UploadProducts] ✅ Created product: ${createdProduct.title} (${createdProduct.id})`
+          );
+
+          createdCount++;
+          socket.emit("publish:success", {
+            handle,
+            id: createdProduct.id,
+            count: createdCount,
+            title: createdProduct.title,
+          });
+
+          for (const publication of payload?.publications) {
+            try {
+              const publishResponse = await fetch(ADMIN_URL, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Shopify-Access-Token": ADMIN_TOKEN,
+                },
+                body: JSON.stringify({
+                  query: `
+                    mutation PublishablePublish($productId: ID!, $publicationId: ID!) {
+                      publishablePublish(id: $productId, input: {publicationId: $publicationId}) {
+                        publishable {
+                          publishedOnPublication(publicationId: $publicationId)
+                        }
+                        userErrors {
+                          field
+                          message
+                        }
+                      }
+                    }`,
+                  variables: {
+                    productId: createdProduct?.id,
+                    publicationId: publication.publicationId,
+                  },
+                }),
+              });
+
+              const publishData = await publishResponse.json();
+
+              if (publishData.data.publishablePublish.userErrors.length > 0) {
+                console.error(
+                  "Publishing failed for",
+                  product["Title"],
+                  "on publication",
+                  publication.publicationName,
+                  ":",
+                  publishData.data.publishablePublish.userErrors
+                );
+              } else {
+                console.log(
+                  "✅ Successfully created and published:",
+                  product["Title"],
+                  "on publication:",
+                  publication.publicationName
+                );
+              }
+            } catch (error) {
+              console.error(
+                "Error publishing product:",
+                product["title"],
+                "on publication:",
+                publication.publicationName,
+                error
+              );
+            }
+          }
+        } catch (err) {
+          console.error(`[UploadProducts] ❌ Error for ${handle}:`, err);
+          socket.emit("publish:error", {
+            handle: group.baseRow.Handle,
+            message: err?.message || String(err),
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[UploadProducts] Fatal error:", err);
+      socket.emit("publish:error", { message: err?.message || String(err) });
+    }
+  }
 };
