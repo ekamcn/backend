@@ -32,6 +32,7 @@ const storeRoutes = require('./routes/store.routes');
 const path = require('path');
 
 app.use(express.json());
+app.use("/public", express.static(path.join(process.cwd(), "public")));
 console.log(path.join(__dirname, 'logos'))
 app.use(express.static(path.join(__dirname, 'logos')));
 app.use(express.urlencoded({ extended: true }));

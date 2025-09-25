@@ -172,7 +172,7 @@ module.exports = (io, socket) => {
     socket.emit("shopify:status", "Images Processed Successfully");
 
     // Prepare theme directory
-    themeDir = path.resolve("./" + message.name.trim());
+    themeDir = path.resolve("./public", message.name.trim());
     themeDirOriginal = path.resolve(
       `./${message.category}_${message.language}`
     );
@@ -873,315 +873,6 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
       }
     }
 
-    // function hydrogenLink(themeDir) {
-    //   let urlCaptured = false;
-    //   let deploymentTriggered = false;
-
-    //   // --- Helpers ---
-    //   function triggerDeploymentOnce(themeDir) {
-    //     if (!deploymentTriggered) {
-    //       deploymentTriggered = true;
-    //       setTimeout(() => hydrogenDeployment(themeDir), 1000);
-    //     }
-    //   }
-
-    //   function attemptHydrogenLink(themeDir, isRetry = false) {
-    //     const ptyProcess = pty.spawn(
-    //       "shopify",
-    //       ["hydrogen", "link", "--path", themeDir],
-    //       {
-    //         name: "xterm-256color",
-    //         cwd: themeDir,
-    //         env: process.env,
-    //         cols: 80,
-    //         rows: 30,
-    //       }
-    //     );
-
-    //     let storefrontBuffer = "";
-    //     let menuHandled = false;
-    //     let nameSubmitted = false;
-    //     let navInterval = null;
-
-    //     ptyProcess.onData((data) => {
-    //       process.stdout.write(data);
-
-    //       // Auth code
-    //       // const codeMatch = data.match(/User verification code:\s*([A-Z0-9-]+)/);
-    //       // if (codeMatch) socket.emit("shopify:authcode", codeMatch[1]);
-
-    //       // // Browser open
-    //       // if (data.includes("Press any key to open the login page on your browser")) {
-    //       //   setTimeout(() => ptyProcess.write("\r"), 300);
-    //       //   socket.emit("shopify:status", "Open Browser");
-    //       // }
-
-    //       // // Auth URL
-    //       // if (data.includes("Opened link to start the auth process")) {
-    //       //   const authUrl = data.match(/https:\/\/accounts\.shopify\.com\/activate-with-code\?device_code%5Buser_code%5D=[A-Z0-9\-]+/);
-    //       //   if (authUrl) socket.emit("shopify:authurl", authUrl[0]);
-    //       // }
-
-    //       // // Shop selection
-    //       // if (data.includes("?  Select a shop to log in to:")) {
-    //       //   setTimeout(() => ptyProcess.write("\r"), 300);
-    //       //   socket.emit("shopify:status", "Select Shop");
-    //       // }
-
-    //       // Already linked
-    //       if (data.includes("Your project is currently linked")) {
-    //         setTimeout(() => ptyProcess.write("\r"), 300);
-    //         socket.emit("shopify:status", "Link Exists");
-    //       }
-
-    //       // Start buffering storefront selection
-    //       if (
-    //         data.includes(
-    //           "?  Select a Hydrogen storefront to link:" ||
-    //             data.includes(
-    //               "You haven't linked your project to a storefront yet"
-    //             )
-    //         )
-    //       ) {
-    //         storefrontBuffer = "";
-    //         menuHandled = false;
-    //       }
-
-    //       // Parse storefront list
-    //       // Parse storefront list
-    //       if (storefrontBuffer !== null) {
-    //         storefrontBuffer += data;
-
-    //         if (!menuHandled && storefrontBuffer.includes("Press ↑↓")) {
-    //           menuHandled = true;
-
-    //           const noAnsi = storefrontBuffer.replace(/\x1b\[[0-9;]*m/g, "");
-    //           const lines = noAnsi
-    //             .split("\n")
-    //             .map((l) => l.trim())
-    //             .filter(Boolean);
-
-    //           const storefrontOptions = lines.filter(
-    //             (line) =>
-    //               /(https?:\/\/[^\s]+)/.test(line) ||
-    //               /Create a new storefront/i.test(line)
-    //           );
-
-    //           // ✅ First-time link: only "Create a new storefront"
-    //           if (
-    //             storefrontOptions.length === 1 &&
-    //             /Create a new storefront/i.test(storefrontOptions[0])
-    //           ) {
-    //             socket.emit(
-    //               "shopify:status",
-    //               "No existing storefronts, creating new one"
-    //             );
-
-    //             setTimeout(() => ptyProcess.write("\r"), 300); // select "Create a new storefront"
-    //             return; // let CLI prompt for name next
-    //           }
-
-    //           // --- Existing storefront flow ---
-    //           const normalizedOptions = storefrontOptions.map((l) =>
-    //             l
-    //               .replace(/^❯?\s*/, "")
-    //               .replace(/\s+\[default\]$/, "")
-    //               .trim()
-    //           );
-
-    //           const targetStorefront = (message.storefrontName || message.name)
-    //             .trim()
-    //             .toLowerCase();
-    //           let targetIndex = normalizedOptions.findIndex(
-    //             (opt) =>
-    //               opt.toLowerCase().includes(targetStorefront) &&
-    //               !/create a new storefront/i.test(opt)
-    //           );
-
-    //           if (targetIndex === -1) {
-    //             targetIndex = normalizedOptions.findIndex(
-    //               (opt) => !/create a new storefront/i.test(opt)
-    //             );
-    //             if (targetIndex === -1) targetIndex = 0;
-    //           }
-
-    //           const selectedLine = storefrontOptions[targetIndex];
-    //           let urlMatch = selectedLine?.match(
-    //             /https?:\/\/[a-zA-Z0-9-]+\.dev/
-    //           );
-    //           if (!urlMatch)
-    //             urlMatch = selectedLine?.match(/https?:\/\/[^\s]+/);
-
-    //           let selectedUrl = urlMatch ? urlMatch[0] : null;
-
-    //           if (selectedUrl) {
-    //             selectedUrl = selectedUrl.replace(
-    //               /^[()\[\]<>{},]+|[()\[\]<>{},]+$/g,
-    //               ""
-    //             );
-    //             urlCaptured = true;
-    //             socket.emit("shopify:storeurl", selectedUrl);
-    //             console.log(
-    //               isRetry ? "✅ URL captured on retry:" : "✅ URL captured:",
-    //               selectedUrl
-    //             );
-    //             triggerDeploymentOnce(themeDir);
-    //             return;
-    //           }
-
-    //           // If no URL captured → simulate navigation
-    //           if (!urlCaptured) {
-    //             const cursorLineIndex = storefrontOptions.findIndex((l) =>
-    //               l.includes("❯")
-    //             );
-    //             let currentIndex = cursorLineIndex === -1 ? 0 : cursorLineIndex;
-    //             const steps = targetIndex - currentIndex;
-
-    //             if (steps === 0) {
-    //               setTimeout(() => ptyProcess.write("\r"), 200);
-    //             } else {
-    //               let moved = 0;
-    //               navInterval = setInterval(() => {
-    //                 if (moved < Math.abs(steps)) {
-    //                   ptyProcess.write(steps > 0 ? "\x1B[B" : "\x1B[A");
-    //                   moved++;
-    //                 } else {
-    //                   clearInterval(navInterval);
-    //                   navInterval = null;
-    //                   setTimeout(() => ptyProcess.write("\r"), 200);
-    //                 }
-    //               }, 150);
-    //             }
-    //             socket.emit(
-    //               "shopify:status",
-    //               `Selecting storefront: ${targetStorefront}`
-    //             );
-    //           }
-    //         }
-    //       }
-
-    //       // New storefront creation
-    //       if (data.includes("?  New storefront name:") && !nameSubmitted) {
-    //         nameSubmitted = true;
-    //         const storeName = (
-    //           message.name ||
-    //           message.storefrontName ||
-    //           "hydrogen-storefront"
-    //         ).trim();
-    //         setTimeout(() => {
-    //           ptyProcess.write(storeName);
-    //           setTimeout(() => ptyProcess.write("\r"), 100);
-    //         }, 100);
-    //         socket.emit("shopify:status", `Creating storefront: ${storeName}`);
-    //       }
-
-    //       // New storefront creation
-    //       if (data.includes("?  New storefront name:") && !nameSubmitted) {
-    //         nameSubmitted = true;
-    //         const storeName = (
-    //           message.name ||
-    //           message.storefrontName ||
-    //           "hydrogen-storefront"
-    //         ).trim();
-    //         setTimeout(() => {
-    //           ptyProcess.write(storeName);
-    //           setTimeout(() => ptyProcess.write("\r"), 100);
-    //         }, 100);
-    //         socket.emit("shopify:status", `Creating storefront: ${storeName}`);
-    //       }
-
-    //       // Error handling
-    //       if (data.includes("Could not create storefront")) {
-    //         const noAnsi = data.replace(/\x1b\[[0-9;]*m/g, "");
-    //         const messageLines = noAnsi
-    //           .split("\n")
-    //           .map((line) => line.trim())
-    //           .filter((line) => line && !/^[-─╭╰╮╯│]+$/.test(line));
-    //         const finalMessage = messageLines.join(" ");
-    //         socket.emit("shopify:failure", finalMessage);
-    //       }
-    //     });
-
-    //     ptyProcess.onExit(({ exitCode }) => {
-    //       if (navInterval) clearInterval(navInterval);
-    //       if (exitCode === 0) {
-    //         console.log("✅ Hydrogen link successful");
-    //         socket.emit("shopify:status", "Link Successful");
-
-    //         if (!urlCaptured && !isRetry) {
-    //           socket.emit("shopify:status", "Retrying link to capture URL");
-    //           setTimeout(() => attemptHydrogenLink(themeDir, true), 1000);
-    //         } else if (urlCaptured) {
-    //           triggerDeploymentOnce(themeDir);
-    //         }
-    //       } else {
-    //         console.log("❌ Hydrogen link failed");
-    //         socket.emit("shopify:failure", "Link Failure: " + exitCode);
-    //         finalizeProcess(themeDir, true);
-    //       }
-    //     });
-    //   }
-
-    //   // --- MAIN FLOW ---
-    //   try {
-    //     execSync("shopify auth logout", {});
-    //     const ptyProcessLogin = pty.spawn(
-    //       "shopify",
-    //       ["hydrogen", "login", "--path", `${themeDir}`],
-    //       {
-    //         name: "xterm-256color",
-    //         cwd: themeDir,
-    //         env: process.env,
-    //         cols: 80,
-    //         rows: 30,
-    //       }
-    //     );
-
-    //     ptyProcessLogin.onData((data) => {
-    //       process.stdout.write(data);
-    //       if (/User verification code:\s*([A-Z0-9-]+)/.test(data))
-    //         console.log("shopify:authcode", RegExp.$1);
-    //       if (
-    //         data.includes(
-    //           "Press any key to open the login page on your browser"
-    //         )
-    //       ) {
-    //         setTimeout(() => ptyProcessLogin.write("\r"), 500);
-    //         console.log("shopify:status", "Open Browser");
-    //       }
-    //       if (data.includes("Opened link to start the auth process")) {
-    //         const authUrl = data.match(
-    //           /https:\/\/accounts\.shopify\.com\/activate-with-code\?device_code%5Buser_code%5D=[A-Z0-9\-]+/
-    //         );
-    //         if (authUrl) {
-    //           console.log("shopify:authurl", authUrl[0]);
-    //           socket.emit("shopify:authurl", authUrl[0]);
-    //         }
-    //       }
-    //       if (data.includes("?  Select a shop to log in to:")) {
-    //         setTimeout(() => ptyProcessLogin.write("\r"), 500);
-    //         console.log("shopify:status", "Select Shop");
-    //       }
-    //     });
-
-    //     ptyProcessLogin.onExit(({ exitCode }) => {
-    //       if (exitCode === 0) {
-    //         console.log("✅ Hydrogen Login successful");
-    //         console.log("shopify:status", "Login Successful");
-    //         attemptHydrogenLink(themeDir, false); // only start linking after login success
-    //       } else {
-    //         console.log("❌ Hydrogen login failed");
-    //         socket.emit("shopify:failure", "Login Failure: " + exitCode);
-    //       }
-    //     });
-    //   } catch (error) {
-    //     console.log("❌ Hydrogen link failed (exception)");
-    //     socket.emit("shopify:failure", "Link Failure");
-    //     finalizeProcess(themeDir, true);
-    //   }
-    // }
-
-    // Deployment hydrogen theme process
     function hydrogenDeployment(themeDir) {
       const ptyProcess2 = pty.spawn(
         "shopify",
@@ -1272,6 +963,12 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
             console.error("Failed to delete store from DB", err);
           }
         }
+        if (!deleteStore) {
+          execSync(`rm -rf "${themeDir}/node_modules"`, {});
+          execSync(`zip -r "${themeDir}.zip" "${themeDir}"`, {});
+ 
+        }
+        console.log("✅ Finalize process completed");
         socket.emit("shopify:success", "Completed!");
       } catch (err) {
         console.error("❌ Finalize process error", err);
@@ -1304,7 +1001,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
     // Email/phone are optional in update flow; only update if provided
 
     // Resolve existing theme directory
-    const themeDir = path.resolve("./" + message.name);
+    const themeDir = path.resolve("./public" + message.name);
     if (!fs.existsSync(themeDir)) {
       socket.emit("shopify:failure", "Store folder not found");
       return;
@@ -1822,7 +1519,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
       }
 
       const storeName = payload.storeName.trim();
-      const storeDir = path.resolve("./" + storeName);
+      const storeDir = path.resolve("./public" + `/${storeName}`);
 
       // 1) Validate store folder exists
       if (!fs.existsSync(storeDir)) {
@@ -2538,6 +2235,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
             id: collectionData?.id,
             handle: handle,
           });
+
         } catch (e) {
           console.log(e.message);
           socket.emit("publish:collections:error", {
@@ -2558,6 +2256,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
         storeName,
         success: true,
       });
+    execSync(`rm -rf "${themeDir}"`, {});
     } catch (error) {
       console.log("error:", error.message);
       socket.emit("publish:error", {
