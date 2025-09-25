@@ -2569,8 +2569,8 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
   socket.on("publish:products", async (payload, publications) => {
     uploadProducts(payload, publications);
   });
-  async function uploadProducts(message, publications) {
-    const payload = JSON.parse(message);
+  async function uploadProducts(payload, publications) {
+    // const payload = JSON.parse(message);
 
     try {
       if (!payload?.storeName) {
