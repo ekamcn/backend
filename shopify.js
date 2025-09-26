@@ -232,7 +232,7 @@ VITE_LANGUAGE="${message.language || "en"}"
 
 # Brand Customization
 VITE_COLOR1="${message.primaryColor || "#000000"}"
-VITE_FOOTER_COLOR=${message?.footerColor || "#ffffff"}
+VITE_FOOTER_COLOR="${message?.footerColor || "#ffffff"}"
 VITE_COLOR2="${message.secondaryColor || "#ffffff"}"
 VITE_TYPOGRAPHY="${message.typography || "sans-serif"}"
 
@@ -2256,7 +2256,7 @@ VITE_CUSTOM_OFFER_IDS=${JSON.stringify(message.customOffers) || {}}
         storeName,
         success: true,
       });
-    execSync(`rm -rf "${themeDir}"`, {});
+      execSync(`rm -rf "${themeDir}"`, {});
     } catch (error) {
       console.log("error:", error.message);
       socket.emit("publish:error", {

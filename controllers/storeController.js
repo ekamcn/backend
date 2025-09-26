@@ -49,6 +49,7 @@ async function deleteStoreByName(req, res) {
   await prisma.$connect();
   try {
     const { storeName: store_name } = req.query;
+    const themeDir = path.resolve("./public",store_name.trim());
     // Input validation
     if (!store_name || typeof store_name !== "string" || !store_name.trim()) {
       return res
@@ -58,9 +59,7 @@ async function deleteStoreByName(req, res) {
     // Check if store exists
     const store = await prisma.stores.findFirst({
       where: {
-        store_name: {
-          equals: store_name,
-        },
+        storeName: store_name,
       },
     });
     if (!store) {
@@ -70,6 +69,15 @@ async function deleteStoreByName(req, res) {
     await prisma.stores.delete({
       where: { store_id: store.store_id },
     });
+    
+    if (fs.existsSync(themeDir)) {
+      try {
+        fs.rmSync(themeDir, { recursive: true, force: true });
+      } catch (err) {
+        console.error("Error deleting theme directory:", err);
+        // Optionally, you can return a warning but not fail the API
+      }
+    }
     return res.json({ message: "Store deleted successfully." });
   } catch (error) {
     console.error("Error deleting store:", error);
@@ -247,7 +255,9 @@ async function updateGoogleScripts(req, res) {
 
         const upsertEnvVar = (src, key, value) => {
           if (value === undefined || value === null || value === "") return src;
-          const escapedKey = key ? key.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&") : "";
+          const escapedKey = key
+            ? key.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")
+            : "";
           const regex = new RegExp(`(^|\n)\s*${escapedKey}\s*=.*(?=\n|$)`);
           const line = `${key}="${String(value).trim()}"`;
           if (regex.test(src)) {
@@ -369,7 +379,7 @@ function hydrogenLinkAndDeploy(themeDir, storefrontName) {
           );
           if (authUrl) {
             console.log("Auth URL:", authUrl[0]);
-            return authUrl
+            return authUrl;
           }
         }
 
@@ -421,7 +431,9 @@ function hydrogenLinkAndDeploy(themeDir, storefrontName) {
           if (storefrontBuffer.includes("Press ↑") && !selectingStorefront) {
             selectingStorefront = true;
 
-            const noAnsi = storefrontBuffer ? storefrontBuffer.replace(/\x1b\[[0-9;]*m/g, "") : "";
+            const noAnsi = storefrontBuffer
+              ? storefrontBuffer.replace(/\x1b\[[0-9;]*m/g, "")
+              : "";
             const lines = noAnsi
               .split("\n")
               .map((l) => l.trim())
@@ -436,10 +448,11 @@ function hydrogenLinkAndDeploy(themeDir, storefrontName) {
 
             // normalize
             const normalizedOptions = storefrontOptions.map((l) =>
-              l ? l
-                  .replace(/^❯?\s*/, "")
-                  .replace(/\s+\[default\]$/, "")
-                  .trim()
+              l
+                ? l
+                    .replace(/^❯?\s*/, "")
+                    .replace(/\s+\[default\]$/, "")
+                    .trim()
                 : ""
             );
 
@@ -549,7 +562,9 @@ function hydrogenLinkAndDeploy(themeDir, storefrontName) {
                 !/^╭.*╮$/.test(line) &&
                 !/^╰.*╯$/.test(line)
             )
-            .map((line) => line ? line.replace(/^│/, "").replace(/│$/, "").trim() : "");
+            .map((line) =>
+              line ? line.replace(/^│/, "").replace(/│$/, "").trim() : ""
+            );
           const finalMessage = messageLines.join(" ");
         }
       });
